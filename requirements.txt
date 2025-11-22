@@ -1,0 +1,6 @@
+Telethon==1.36.0
+python-dotenv==1.0.0
+colorama==0.4.6
+aiohttp
+jinja2
+aiohttp_jinja2
