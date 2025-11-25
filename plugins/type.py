@@ -1,4 +1,5 @@
 import asyncio
+import random
 from system.decorators import command
 
 @command("type", aliases=["print"])
@@ -12,21 +13,33 @@ async def typewriter(ctx):
 
     text = ctx.input
     current_text = ""
+    cursor = " █"
     
-    # Cursor symbol
-    cursor = " █" 
+    # Оптимізація:
+    # Telegram дозволяє редагувати повідомлення десь раз на секунду без лімітів,
+    # або чергами. Щоб ефект був гарним і безпечним, краще друкувати по 2-3 символи,
+    # або робити затримку трохи більшою.
     
     try:
-        for char in text:
+        for i, char in enumerate(text):
             current_text += char
-            # Edit message: add letter + cursor
-            await ctx.respond(f"{current_text}{cursor}")
-            # Small delay for effect (0.05 - 0.1 sec)
-            await asyncio.sleep(0.05)
+            
+            # Редагуємо повідомлення на кожному кроці
+            # Але якщо текст довгий, краще пропускати деякі кроки, щоб не зловити флуд
+            # (тут залишаємо посимвольно, але збільшимо sleep)
+            
+            try:
+                await ctx.respond(f"{current_text}{cursor}")
+            except Exception:
+                # Ігноруємо помилки під час швидкого друку
+                pass
+            
+            # Випадкова затримка для реалістичності (0.1 - 0.25 сек)
+            # Це набагато безпечніше ніж 0.05
+            await asyncio.sleep(random.uniform(0.1, 0.25))
         
-        # Remove cursor at the end
+        # Фінальний текст без курсора
         await ctx.respond(current_text)
         
     except Exception as e:
-        # If message was deleted during typing - no problem
         pass
