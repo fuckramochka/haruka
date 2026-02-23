@@ -1,0 +1,20 @@
+aiofile==3.8.1
+gitpython==3.1.27
+meval==2.5
+aiohttp-jinja2==1.5
+aiohttp
+jinja2==3.0.3
+requests==2.27.1
+beautifulsoup4>=4.12,<5
+aiogram>=3,<4
+grapheme==0.6.0
+emoji==2.1.0
+werkzeug==2.2.2
+psutil==5.9.4
+ruamel-yaml==0.17.21
+rsa==4.9
+Telethon==1.36.0
+Pillow
+yt-dlp
+
+# Python 3.9+
