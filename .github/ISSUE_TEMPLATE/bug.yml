@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible engine defect
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not post API hashes, bot tokens, sessions, database files or private messages.
+  - type: input
+    id: version
+    attributes:
+      label: Haruka version
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Platform
+      options: [Linux, Windows, macOS, Android/Termux, Docker, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs
+      render: shell

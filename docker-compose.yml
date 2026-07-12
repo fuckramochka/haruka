@@ -1,0 +1,11 @@
+services:
+  haruka:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - haruka-data:/home/haruka/data
+    init: true
+    stop_grace_period: 30s
+volumes:
+  haruka-data:
