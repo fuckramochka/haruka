@@ -63,6 +63,39 @@ class AI(Module):
                    "Preserve key facts, names and numbers.",
         )
 
+    @command("summ", aliases=["tldr"], usage="[count]", doc="Summarize the last N messages in this chat.")
+    async def summ_cmd(self, ctx: Context) -> None:
+        provider = self._provider(ctx)
+        if provider is None:
+            await ctx.error("AI provider is not initialised.")
+            return
+        count = 40
+        if ctx.args and ctx.args[0].isdigit():
+            count = max(1, min(200, int(ctx.args[0])))
+        await ctx.loading(f"Reading the last {count} messages...")
+        lines: list[str] = []
+        try:
+            async for msg in ctx.app.get_chat_history(ctx.chat_id, limit=count):
+                body = msg.text or msg.caption
+                if not body:
+                    continue
+                who = msg.from_user.first_name if msg.from_user else "?"
+                lines.append(f"{who}: {body}")
+        except Exception as exc:  # noqa: BLE001
+            await ctx.error(f"Could not read chat history: {render.escape(exc)}")
+            return
+        lines.reverse()  # oldest-first reads better for a summary
+        convo = "\n".join(lines)
+        if not convo.strip():
+            await ctx.respond(render.info("Nothing to summarize in this chat."))
+            return
+        await self._run(
+            ctx, convo,
+            system="You are summarizing a Telegram chat. Produce a short TL;DR as "
+                   "3-6 bullet points capturing decisions, questions and action items. "
+                   "Attribute important points to who said them when it matters.",
+        )
+
     @command("rewrite", usage="[tone]", doc="Rewrite the replied message (optional tone).")
     async def rewrite_cmd(self, ctx: Context) -> None:
         text = await ctx.reply_text_or_none()

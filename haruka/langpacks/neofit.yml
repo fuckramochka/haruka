@@ -1,0 +1,19 @@
+# Haruka — Neofit (meme pack, falls back to English)
+engine:
+  online: "the engine has awakened"
+  ready: "transcendence achieved"
+common:
+  saved: "committed to the void"
+  close: "dismiss"
+  back: "retreat"
+  cancel: "abort the ritual"
+  confirm: "seal it"
+  enabled: "ascended"
+  disabled: "dormant"
+  done: "the deed is done"
+  error: "the void rejected it"
+  loading: "channeling energy..."
+help:
+  title: "Grimoire of Commands"
+lang:
+  changed: "tongue changed to {name}"

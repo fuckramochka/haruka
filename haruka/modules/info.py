@@ -6,10 +6,11 @@ import time
 
 import psutil
 
+from haruka import utils
 from haruka.api import Context, Module, command, render
 from haruka.core.config import ConfigOption, ModuleConfig
 from haruka.core.diagnostics import collect_health
-from haruka.version import __version__, version_string
+from haruka.version import CODENAME, __version__, version_string
 
 
 def _uptime(seconds: float) -> str:
@@ -44,12 +45,15 @@ class Info(Module):
         me = ctx.client.me
         return {
             "owner": f"{me.first_name} (id {me.id})",
-            "version": version_string(), "version_raw": __version__,
+            "version": version_string(), "version_raw": __version__, "codename": CODENAME,
             "prefix": ctx.db.get("core", "prefix", "."),
-            "uptime": _uptime(ctx.core.uptime), "ram": f"{process.memory_info().rss / 1024 / 1024:.1f} MB",
+            "uptime": utils.formatted_uptime(ctx.core.uptime), "ram": f"{process.memory_info().rss / 1024 / 1024:.1f} MB",
             "cpu": f"{psutil.cpu_percent():.1f}%", "modules": str(len(ctx.loader.modules)),
             "commands": str(len(ctx.loader.command_names)), "python": platform.python_version(),
             "platform": platform.system(), "ping": f"{ping:.0f}", "emoji": str(self.config["ping_emoji"]),
+            "os": utils.get_os_name(), "kernel": platform.release(), "cpu_cores": utils.cpu_model(),
+            "hostname": utils.hostname(), "user": utils.username(), "build": utils.git_status(),
+            "branch": utils.git_info()["branch"] or "release",
         }
 
     @command(aliases=["haruka", "status", "infocmd", "ubinfo"], doc="Show configurable userbot status card")
@@ -57,12 +61,37 @@ class Info(Module):
         values = self._values(ctx)
         template = self.config["custom_message"]
         text = template.format_map(_Values(values)) if template else render.card(
-            values["version"], {"Owner": values["owner"], "Uptime": values["uptime"], "RAM": values["ram"], "CPU": values["cpu"], "Modules": values["modules"], "Commands": values["commands"], "Prefix": values["prefix"], "Python": values["python"], "Platform": values["platform"]}, emoji=self.emoji)
+            values["version"],
+            {
+                "Owner": values["owner"], "Uptime": values["uptime"], "Build": values["build"],
+                "RAM": values["ram"], "CPU": f"{values['cpu']} · {values['cpu_cores']}",
+                "Modules": values["modules"], "Commands": values["commands"], "Prefix": values["prefix"],
+                "Python": values["python"], "OS": values["os"], "Kernel": values["kernel"],
+                "Host": f"{values['user']}@{values['hostname']}",
+            },
+            emoji=self.emoji,
+        )
         banner = self.config["banner_url"]
         if banner:
             await ctx.delete(); await ctx.app.send_photo(ctx.chat_id, banner, caption=text)
         else:
             await ctx.respond(text)
+
+    @command(aliases=["herokucmd", "aboutcmd"], doc="Show a compact about card for the engine")
+    async def about(self, ctx: Context):
+        values = self._values(ctx)
+        await ctx.card(
+            "Haruka userbot",
+            {
+                "Version": f"{values['version_raw']} \u00ab{values['codename']}\u00bb",
+                "Build": values["build"],
+                "Prefix": render.mono(values["prefix"]),
+                "Modules": values["modules"],
+                "Uptime": values["uptime"],
+                "Engine": "Kurigram / Haruka core",
+            },
+            emoji="\N{RINGED PLANET}",
+        )
 
     @command(doc="Measure Telegram round-trip time with configured appearance")
     async def ping(self, ctx: Context):

@@ -1,0 +1,25 @@
+# Haruka — UwU (meme pack, falls back to English)
+engine:
+  online: "Engine is onwine >w<"
+  restarting: "Westawting engyine OwO"
+  ready: "Weady :3"
+common:
+  saved: "Saved uwu"
+  close: "Cwose"
+  back: "Baccy"
+  next: "Nyext"
+  cancel: "Cancew"
+  confirm: "Confiwm >w<"
+  enabled: "Enyabwed"
+  disabled: "Disabwed"
+  yes: "Yesh"
+  no: "Nu"
+  done: "Dwone :3"
+  error: "Ewwow OwO"
+  loading: "Pwocessing... uwu"
+help:
+  title: "Command Atwas UwU"
+settings:
+  language: "Wanguage"
+lang:
+  changed: "Wanguage changed to {name} >w<"

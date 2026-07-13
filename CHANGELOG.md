@@ -1,5 +1,70 @@
 # Changelog
 
+## 2.2.0 — "Nova" (fresh Telegram features)
+
+New user-facing modules mapped to Telegram's 2026 updates, chosen after
+reviewing the Bot API changelog, client release notes and Kurigram's feature
+set.
+
+- **Stories module** — `.story` posts a replied photo/video as your Telegram
+  Story, `.stories [@user]` lists active stories, `.savestory @user <id>`
+  downloads one. Uses Kurigram's native story methods with graceful fallback
+  when a build lacks them.
+- **Checklists module** — collaborative, per-chat to-do lists inspired by
+  Telegram's 2026 checklists: `.todo`, `.checklist`, `.check`, `.uncheck`,
+  `.rmtask`, `.cleardone`, with a live progress bar. Works on any account
+  (DB-backed, no Premium required).
+- **AI chat summary** — `.summ` / `.tldr [count]` reads the last N messages and
+  produces a TL;DR with decisions, questions and action items.
+- **Supply-chain hardening for the loader** — after the 2026 fake-`pyrogram`
+  PyPI attacks, module dependencies are now screened before install:
+  known-malicious and typosquatted Telegram-library names are blocked
+  outright, unpinned versions are warned about, and third-party installs are
+  opt-in via `.installs on`.
+
+## 2.1.1 — Heroku mini-module parity (user-facing)
+
+Ported the behaviour of Heroku's everyday commands into Haruka's own modules,
+not the invisible engine plumbing.
+
+- **`.info` / `.status`** now shows a full Heroku-style card: version + build
+  (git branch @ commit), uptime, RAM, CPU load *and* physical/logical cores,
+  module/command counts, prefix, Python, OS pretty-name, kernel and
+  `user@host`. Still fully templatable via `custom_message`.
+- **`.about` (`.herokucmd`)** — compact "about the userbot" card.
+- **`.ping`** keeps its configurable emoji/banner/template.
+- **Blacklist family** like Heroku: `.blacklist`/`.unblacklist` (chats),
+  `.blacklistuser`/`.unblacklistuser` (users, by id or reply) and `.blacklists`
+  to list them. The dispatcher now ignores commands *and* watchers from
+  blacklisted chats/users — the owner can never be blacklisted.
+- **`utils`** gained `formatted_uptime`, `get_os_name`, `hostname`,
+  `username`, `cpu_model`, `git_info` and `git_status` for module authors.
+- `.help`, `.menu`, `.config`, `.lang`, alias and prefix commands remain and
+  are now surfaced together in help.
+
+## 2.1.0 — "Babel" (Heroku parity pass)
+
+Deep analysis of the Heroku userbot and a matching upgrade of Haruka's weakest
+areas, without importing Heroku's architectural debt.
+
+- **Localization overhaul.** Replaced the tiny inline string table with a real
+  language-pack system in `haruka/langpacks/*.yml`: full `en`, `ru`, `uk`,
+  `de`, `ja` packs plus Heroku-style meme packs (`uwu`, `leet`, `tiktok`,
+  `neofit`). Dependency-free loader (uses PyYAML when present, otherwise a
+  built-in parser), per-key English fallback and runtime switching.
+- **Localized engine.** `Translator` now exposes `available()`, `label`,
+  `gettext`, `register_module_strings` and per-module `strings`. Settings, the
+  language command and the web onboarding dropdown are all pack-driven.
+- **New `Translations` module.** `.langlist`, `.langpicker` (inline keyboard via
+  the companion bot) and `.uselang <code>` for switching interface language.
+- **Module manifests.** New `haruka.core.metadata` parses Heroku/FTG-style
+  headers: `# meta developer:`, `# requires:`, `# min_engine:`, `# scope:`.
+- **Dependency provisioning.** The loader checks the minimum engine version and
+  best-effort installs a module's `# requires:` before executing third-party
+  code, aborting cleanly on failure instead of half-loading.
+- **SDK surface.** `haruka.api` now exports `ModuleManifest`,
+  `SUPPORTED_LANGUAGES` and `MEME_LANGUAGES`.
+
 ## 2.0.5
 
 - Replaced partial personalization with a universal Hikka-style companion-bot Config Center.

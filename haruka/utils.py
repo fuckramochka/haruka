@@ -1,9 +1,15 @@
 """Stable utility surface for third-party engine modules."""
 from __future__ import annotations
 
+import getpass
 import ipaddress
+import platform as _platform
 import re
+import socket
+import subprocess
 from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlparse
 
 
@@ -50,3 +56,99 @@ def safe_getattr(obj, path: str, default=None):
 
 def slugify(value: str) -> str:
     return re.sub(r"[^a-z0-9_]+", "_", value.casefold()).strip("_")
+
+
+# -- host / platform introspection (Heroku .info parity) ---------------------
+
+
+def formatted_uptime(seconds: float) -> str:
+    """Human readable uptime, e.g. ``3d 4h 12m`` / ``5m 3s``."""
+    seconds = int(max(seconds, 0))
+    minutes, sec = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    if days:
+        return f"{days}d {hours}h {minutes}m"
+    if hours:
+        return f"{hours}h {minutes}m {sec}s"
+    if minutes:
+        return f"{minutes}m {sec}s"
+    return f"{sec}s"
+
+
+@lru_cache(maxsize=1)
+def get_os_name() -> str:
+    """Best-effort pretty OS name (reads /etc/os-release on Linux)."""
+    try:
+        for line in Path("/etc/os-release").read_text(encoding="utf-8").splitlines():
+            if line.startswith("PRETTY_NAME"):
+                return line.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        pass
+    system = _platform.system()
+    release = _platform.release()
+    return f"{system} {release}".strip() or "Unknown"
+
+
+def hostname() -> str:
+    try:
+        return socket.gethostname() or _platform.node() or "unknown"
+    except OSError:
+        return _platform.node() or "unknown"
+
+
+def username() -> str:
+    try:
+        return getpass.getuser()
+    except Exception:
+        return "unknown"
+
+
+def cpu_model() -> str:
+    """Physical/logical core summary, e.g. ``4 (8) core(-s)``."""
+    try:
+        import psutil
+
+        physical = psutil.cpu_count(logical=False) or 0
+        logical = psutil.cpu_count() or 0
+        return f"{physical} ({logical}) core(-s)"
+    except Exception:
+        return "unknown"
+
+
+@lru_cache(maxsize=1)
+def git_info() -> dict:
+    """Return best-effort git metadata: ``branch``, ``commit``, ``dirty``.
+
+    Never raises: returns empty strings when the working tree is not a git
+    checkout (e.g. installed from a wheel).
+    """
+    info = {"branch": "", "commit": "", "dirty": False}
+
+    def _run(*args: str) -> str:
+        try:
+            out = subprocess.run(
+                ["git", *args],
+                cwd=str(Path(__file__).resolve().parent.parent),
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            return out.stdout.strip() if out.returncode == 0 else ""
+        except (OSError, subprocess.SubprocessError):
+            return ""
+
+    info["branch"] = _run("rev-parse", "--abbrev-ref", "HEAD")
+    info["commit"] = _run("rev-parse", "--short", "HEAD")
+    info["dirty"] = bool(_run("status", "--porcelain"))
+    return info
+
+
+def git_status() -> str:
+    """Short git description like ``master @ a1b2c3d*`` (``*`` = dirty)."""
+    info = git_info()
+    if not info["commit"]:
+        return "release build"
+    dirty = "*" if info["dirty"] else ""
+    branch = info["branch"] or "detached"
+    return f"{branch} @ {info['commit']}{dirty}"

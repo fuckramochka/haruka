@@ -19,12 +19,21 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from haruka.core.metadata import (
+    ModuleManifest,
+    engine_satisfies,
+    install_requirements,
+    missing_requirements,
+    parse_manifest,
+    screen_requirements,
+)
 from haruka.core.module import (
     BoundCallback,
     BoundCommand,
     BoundWatcher,
     Module,
 )
+from haruka.version import __version__ as ENGINE_VERSION
 
 if TYPE_CHECKING:
     from haruka.core.client import HarukaClient
@@ -42,11 +51,12 @@ class ModuleLoadError(RuntimeError):
 
 
 class LoadedModule:
-    def __init__(self, instance: Module, origin: str, source_path: Optional[Path], import_name: str = ""):
+    def __init__(self, instance: Module, origin: str, source_path: Optional[Path], import_name: str = "", manifest: Optional[ModuleManifest] = None):
         self.instance = instance
         self.origin = origin  # "builtin" | "user"
         self.source_path = source_path
         self.import_name = import_name
+        self.manifest = manifest or ModuleManifest()
         self.commands: list[BoundCommand] = []
         self.watchers: list[BoundWatcher] = []
         self.callbacks: list[BoundCallback] = []
@@ -125,9 +135,17 @@ class Loader:
         module.ui = ui
 
     async def _register(
-        self, instance: Module, origin: str, source_path: Optional[Path], import_name: str = ""
+        self, instance: Module, origin: str, source_path: Optional[Path], import_name: str = "", manifest: Optional[ModuleManifest] = None
     ) -> LoadedModule:
         self._inject(instance)
+
+        # Register per-module localization strings, if any were declared.
+        translator = getattr(self.app_ref, "translator", None)
+        if translator is not None and getattr(instance, "strings", None):
+            try:
+                translator.register_module_strings(instance.name, instance.strings)
+            except Exception:
+                logger.debug("Could not register strings for %s", instance.name, exc_info=True)
 
         # Bind declarative config to the database if the module declared one.
         if instance.config is not None:
@@ -146,7 +164,7 @@ class Loader:
         if existing is not None and (existing.origin == "builtin" or origin == "builtin"):
             raise ModuleLoadError(f"Module name collision: {instance.name}")
 
-        loaded = LoadedModule(instance, origin, source_path, import_name)
+        loaded = LoadedModule(instance, origin, source_path, import_name, manifest)
         loaded.commands = instance.collect_commands()
         loaded.watchers = instance.collect_watchers()
         loaded.callbacks = instance.collect_callbacks()
@@ -251,6 +269,39 @@ class Loader:
         path = path.resolve()
         if path.suffix.lower() != ".py":
             raise ModuleLoadError("Only .py modules are supported")
+
+        # Parse the declarative manifest and provision it before executing any
+        # third-party code. Failing fast here keeps a half-satisfied import out
+        # of the runtime.
+        manifest = parse_manifest(path.read_text(encoding="utf-8"))
+        if not engine_satisfies(manifest.min_engine, ENGINE_VERSION):
+            raise ModuleLoadError(
+                f"Module requires engine >= {manifest.min_engine} (running {ENGINE_VERSION})"
+            )
+        if manifest.requires:
+            # Supply-chain screening: never hand a suspicious dependency to pip.
+            blocked, warnings = screen_requirements(manifest.requires)
+            if blocked:
+                raise ModuleLoadError(
+                    "Refusing to install suspicious dependencies (possible "
+                    "supply-chain attack): " + ", ".join(blocked)
+                )
+            for name in warnings:
+                logger.warning("Module %s requests unpinned dependency '%s'", path.name, name)
+            # Installing third-party code is opt-in. The owner enables it once
+            # with '.installs on' after reviewing the module source.
+            needed = missing_requirements(manifest.requires)
+            if needed and not bool(self.db.get("core", "allow_untrusted_installs", False)):
+                raise ModuleLoadError(
+                    "This module wants to install: " + ", ".join(needed) + ". "
+                    "Review the source, then run '.installs on' to allow it."
+                )
+            ok, attempted = install_requirements(manifest.requires)
+            if not ok:
+                raise ModuleLoadError(
+                    "Could not install dependencies: " + ", ".join(attempted)
+                )
+        self._pending_manifest = manifest
         import_key = re.sub(r"[^a-zA-Z0-9_]", "_", path.stem)
         digest = hashlib.sha1(str(path).encode(), usedforsecurity=False).hexdigest()[:10]
         import_name = f"haruka_user_{import_key}_{digest}"
@@ -281,7 +332,8 @@ class Loader:
         names = []
         try:
             for instance in instances:
-                await self._register(instance, "user", path, spec.name)
+                instance.manifest = manifest
+                await self._register(instance, "user", path, spec.name, manifest)
                 names.append(instance.name)
         except Exception:
             for name in reversed(names):

@@ -1,0 +1,21 @@
+# Haruka — TikTokKid (meme pack, falls back to English)
+engine:
+  online: "engine is lowkey online fr"
+  ready: "we good no cap"
+common:
+  saved: "saved fr fr"
+  close: "close it bruh"
+  back: "go back gng"
+  cancel: "nah cancel"
+  confirm: "bet, confirm"
+  enabled: "on fr"
+  disabled: "off ngl"
+  yes: "yea gng"
+  no: "nah"
+  done: "done and dusted"
+  error: "bro it errored \U0001f480"
+  loading: "cooking... \U0001f373"
+help:
+  title: "Command Atlas (it's giving help)"
+lang:
+  changed: "language changed to {name}, slay"

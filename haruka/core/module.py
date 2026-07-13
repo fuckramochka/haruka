@@ -182,10 +182,16 @@ class Module:
     author: str = "unknown"
     version: str = "0.0.0"
     requires: tuple[str, ...] = ()
+    # Optional per-module localization: {"key": "English"} or
+    # {"key": {"en": "...", "ru": "..."}}. Registered at load time.
+    strings: dict = {}
 
     def __init__(self) -> None:
         # Injected by the loader.
         self.app = None  # HarukaClient
+        # Declarative manifest parsed from the source header (see
+        # haruka.core.metadata). Empty for built-ins unless they set it.
+        self.manifest = None
         self.db = None  # Database
         self.bot = None  # InlineBot | None
         self.ui = None  # ui theme/render facade

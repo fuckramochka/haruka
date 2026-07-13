@@ -83,6 +83,25 @@ class Dispatcher:
     def _aliases(self) -> dict[str, str]:
         return self.db.get("core", "aliases", {})
 
+    def _blacklisted_chats(self) -> set[int]:
+        return {int(c) for c in self.db.get("core", "blacklist_chats", [])}
+
+    def _blacklisted_users(self) -> set[int]:
+        return {int(u) for u in self.db.get("core", "blacklist_users", [])}
+
+    def _is_blacklisted(self, chat_id: Optional[int], sender_id: Optional[int]) -> bool:
+        """Heroku-style blacklist: ignore commands from muted chats/users.
+
+        The owner is never blacklisted so recovery is always possible.
+        """
+        if sender_id is not None and sender_id == self.security.owner_id:
+            return False
+        if chat_id is not None and chat_id in self._blacklisted_chats():
+            return True
+        if sender_id is not None and sender_id in self._blacklisted_users():
+            return True
+        return False
+
     # -- entrypoint ------------------------------------------------------
 
     async def _on_message(self, _, message: Message) -> None:
@@ -125,6 +144,8 @@ class Dispatcher:
         if message.outgoing and sender_id is None:
             sender_id = self.security.owner_id
         if sender_id in PROTECTED_TELEGRAM_IDS:
+            return True
+        if self._is_blacklisted(getattr(message.chat, "id", None), sender_id):
             return True
         if not self.loader.is_module_enabled(bound.module.name) or not self.loader.is_command_enabled(bound.name):
             return True
@@ -188,6 +209,8 @@ class Dispatcher:
         watchers = self.loader.watchers
         sender = message.from_user
         if not watchers or (sender and sender.id in PROTECTED_TELEGRAM_IDS):
+            return
+        if self._is_blacklisted(getattr(message.chat, "id", None), sender.id if sender else None):
             return
         is_group = message.chat and message.chat.type.name in {"GROUP", "SUPERGROUP"}
         is_private = message.chat and message.chat.type.name == "PRIVATE"

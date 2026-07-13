@@ -239,7 +239,7 @@ class WebServer:
 <section class='card wide'><h2>Core settings</h2>
 <form method='post' action='/action/core' class='list'>
 <label>Command prefix<br><input name='prefix' maxlength='3' placeholder='{html.escape(self.app.db.get("core", "prefix", "."))}'></label>
-<label>Language<br><select name='language'><option value=''>Keep {html.escape(self.app.translator.language)}</option><option>en</option><option>ru</option><option>uk</option><option>ja</option><option>de</option><option>fr</option><option>es</option></select></label>
+<label>Language<br><select name='language'><option value=''>Keep {html.escape(self.app.translator.language)}</option>{''.join(f"<option value='{html.escape(code)}'>{html.escape(label)}</option>" for code, label in self.app.translator.available().items())}</select></label>
 <label>Companion bot token<br><input type='password' name='bot_token' autocomplete='off' placeholder='Leave empty to keep current'></label>
 <button class='primary'>Save settings</button></form><p class='muted'>A new companion bot token activates after restart.</p></section>
 </div></div></body></html>"""

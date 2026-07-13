@@ -116,3 +116,19 @@ class PlatformFeatureTests(unittest.IsolatedAsyncioTestCase):
         manifest = ExtensionManifest(name="Demo", sha256=hashlib.sha256(source).hexdigest())
         self.assertTrue(manifest.verify_source(source))
         self.assertEqual(compatibility(manifest), [])
+
+
+class SupplyChainTests(unittest.TestCase):
+    def test_blocks_typosquats_and_known_bad(self):
+        from haruka.core.metadata import screen_requirements
+        blocked, _ = screen_requirements(["pyrogramm", "pyrogran", "requests==2.31.0"])
+        self.assertIn("pyrogramm", blocked)
+        self.assertIn("pyrogran", blocked)
+        self.assertNotIn("requests==2.31.0", blocked)
+
+    def test_allows_trusted_and_warns_unpinned(self):
+        from haruka.core.metadata import screen_requirements
+        blocked, warnings = screen_requirements(["kurigram", "httpx"])
+        self.assertEqual(blocked, [])
+        self.assertIn("httpx", warnings)
+        self.assertNotIn("kurigram", warnings)

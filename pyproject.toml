@@ -49,6 +49,10 @@ Changelog = "https://github.com/fuxckramochka/haruka/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["haruka"]
+artifacts = ["haruka/langpacks/*.yml"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"haruka/langpacks" = "haruka/langpacks"
 
 [tool.ruff]
 line-length = 100

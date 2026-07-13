@@ -159,18 +159,115 @@ class Settings(Module):
         webbrowser.open(ctx.core.web.url)
         await ctx.ok("Web Control Center opened on this device.")
 
-    @command(aliases=["lang", "locale", "setlang"], doc="Show or change the engine language", usage="[en|ru|uk|ja|de|fr|es]")
+    @command(aliases=["lang", "locale", "setlang"], doc="Show or change the engine language", usage="[code]")
     async def language(self, ctx: Context):
         translator = ctx.core.translator
+        available = translator.available()
         if not ctx.args:
-            await ctx.card("Language", {"Current": translator.language, "Available": "en, ru, uk, ja, de, fr, es"})
+            await ctx.card(
+                translator.t("lang.title"),
+                {
+                    translator.t("settings.current"): available.get(translator.language, translator.language),
+                    translator.t("settings.available"): ", ".join(sorted(available)),
+                },
+            )
             return
         try:
             await translator.set_language(ctx.args[0].lower())
         except ValueError as exc:
             await ctx.error(str(exc))
             return
-        await ctx.ok(translator.t("common.saved"))
+        await ctx.ok(translator.t("lang.changed", name=available.get(translator.language, translator.language)))
+
+    @command(aliases=["allowinstalls"], usage="[on|off]", doc="Allow user modules to pip-install their dependencies")
+    async def installs(self, ctx: Context):
+        if not ctx.args:
+            state = bool(ctx.db.get("core", "allow_untrusted_installs", False))
+            await ctx.respond(render.info(
+                f"Dependency installs are <b>{'on' if state else 'off'}</b>. "
+                "Suspicious/typosquatted packages are always blocked."
+            ))
+            return
+        state = ctx.args[0].lower() in {"on", "1", "true", "yes", "enable", "enabled"}
+        await ctx.db.set("core", "allow_untrusted_installs", state)
+        await ctx.ok(f"Dependency installs {'enabled' if state else 'disabled'}.")
+
+    # -- blacklist (Heroku parity) ---------------------------------------
+
+    async def _resolve_target(self, ctx: Context) -> int | None:
+        """Resolve a chat/user id from args or the replied-to message."""
+        if ctx.args:
+            raw = ctx.args[0]
+            try:
+                return int(raw)
+            except ValueError:
+                try:
+                    entity = await ctx.app.get_chat(raw)
+                    return entity.id
+                except Exception:
+                    return None
+        if ctx.reply is not None and ctx.reply.from_user:
+            return ctx.reply.from_user.id
+        return ctx.chat_id
+
+    async def _toggle(self, ctx: Context, key: str, value: int, add: bool, label: str) -> None:
+        current = list(ctx.db.get("core", key, []))
+        present = value in current or str(value) in [str(x) for x in current]
+        current = [x for x in current if str(x) != str(value)]
+        if add and not present:
+            current.append(value)
+            await ctx.db.set("core", key, current)
+            await ctx.ok(f"{label} <code>{value}</code> added to the blacklist.")
+        elif not add:
+            await ctx.db.set("core", key, current)
+            await ctx.ok(f"{label} <code>{value}</code> removed from the blacklist.")
+        else:
+            await ctx.respond(render.info(f"{label} <code>{value}</code> is already blacklisted."))
+
+    @command(aliases=["bl"], doc="Ignore all commands in a chat", usage="[chat id]")
+    async def blacklist(self, ctx: Context):
+        target = await self._resolve_target(ctx)
+        if target is None:
+            await ctx.error("Could not resolve that chat.")
+            return
+        await self._toggle(ctx, "blacklist_chats", target, True, "Chat")
+
+    @command(aliases=["unbl"], doc="Stop ignoring commands in a chat", usage="[chat id]")
+    async def unblacklist(self, ctx: Context):
+        target = await self._resolve_target(ctx)
+        if target is None:
+            await ctx.error("Could not resolve that chat.")
+            return
+        await self._toggle(ctx, "blacklist_chats", target, False, "Chat")
+
+    @command(aliases=["blu"], doc="Ignore all commands from a user", usage="[user id | reply]")
+    async def blacklistuser(self, ctx: Context):
+        target = await self._resolve_target(ctx)
+        if target is None:
+            await ctx.error("Reply to a user or pass an id.")
+            return
+        await self._toggle(ctx, "blacklist_users", target, True, "User")
+
+    @command(aliases=["unblu"], doc="Stop ignoring commands from a user", usage="[user id | reply]")
+    async def unblacklistuser(self, ctx: Context):
+        target = await self._resolve_target(ctx)
+        if target is None:
+            await ctx.error("Reply to a user or pass an id.")
+            return
+        await self._toggle(ctx, "blacklist_users", target, False, "User")
+
+    @command(aliases=["bllist"], doc="Show blacklisted chats and users")
+    async def blacklists(self, ctx: Context):
+        chats = ctx.db.get("core", "blacklist_chats", [])
+        users = ctx.db.get("core", "blacklist_users", [])
+        await ctx.card(
+            "Blacklist",
+            {
+                "Chats": ", ".join(str(c) for c in chats) or "none",
+                "Users": ", ".join(str(u) for u in users) or "none",
+            },
+            emoji="\N{NO ENTRY}",
+        )
 
     @command(aliases=["settings"], doc="Show core engine settings")
     async def settingscard(self, ctx: Context):

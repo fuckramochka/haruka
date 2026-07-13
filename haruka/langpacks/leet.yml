@@ -1,0 +1,22 @@
+# Haruka — 1337 (meme pack, falls back to English)
+engine:
+  online: "3ng1n3 15 0nl1n3"
+  ready: "r34dy"
+common:
+  saved: "54v3d"
+  close: "cl053"
+  back: "b4ck"
+  next: "n3xt"
+  cancel: "c4nc3l"
+  confirm: "c0nf1rm"
+  enabled: "3n4bl3d"
+  disabled: "d154bl3d"
+  yes: "y3"
+  no: "n0"
+  done: "d0n3"
+  error: "3rr0r"
+  loading: "pr0c3551ng..."
+help:
+  title: "C0mm4nd 4tl45"
+lang:
+  changed: "l4ngu4g3 ch4ng3d t0 {name}"
