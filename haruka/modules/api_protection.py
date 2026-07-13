@@ -133,7 +133,7 @@ class APIRatelimiterMod(loader.Module):
             ordered: bool = False,
             flood_sleep_threshold: int = None,
         ):
-            await asyncio.sleep(random.randint(1, 5) / 100)
+            # Do not inject artificial latency into every Telegram API call.
             req = (request,) if not is_list_like(request) else request
             for r in req:
                 if (

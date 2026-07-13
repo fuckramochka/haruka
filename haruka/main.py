@@ -1100,16 +1100,8 @@ class Haruka:
         client.dispatcher = dispatcher
         modules.check_security = dispatcher.check_security
 
-        client.add_event_handler(
-            dispatcher.handle_incoming,
-            events.NewMessage,
-        )
-
-        client.add_event_handler(
-            dispatcher.handle_incoming,
-            events.ChatAction,
-        )
-
+        # Register commands first: a slow third-party watcher must never delay
+        # the owner's command from reaching its handler.
         client.add_event_handler(
             dispatcher.handle_command,
             events.NewMessage(forwards=False),
@@ -1118,6 +1110,16 @@ class Haruka:
         client.add_event_handler(
             dispatcher.handle_command,
             events.MessageEdited(),
+        )
+
+        client.add_event_handler(
+            dispatcher.handle_incoming,
+            events.NewMessage,
+        )
+
+        client.add_event_handler(
+            dispatcher.handle_incoming,
+            events.ChatAction,
         )
 
         client.add_event_handler(

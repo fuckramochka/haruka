@@ -423,13 +423,16 @@ class CommandDispatcher:
         return message, prefix, txt, func
 
     async def handle_raw(self, event: events.Raw):
-        """Handle raw events."""
+        """Schedule raw handlers without blocking delivery of new commands."""
         for handler in self.raw_handlers:
             if isinstance(event, tuple(handler.updates)):
-                try:
-                    await loader._call_with_external_context(handler, event)
-                except Exception as e:
-                    logger.exception("Error in raw handler %s: %s", handler.id, e)
+                asyncio.create_task(self._run_raw_handler(handler, event))
+
+    async def _run_raw_handler(self, handler, event: events.Raw):
+        try:
+            await loader._call_with_external_context(handler, event)
+        except Exception as e:
+            logger.exception("Error in raw handler %s: %s", handler.id, e)
 
     async def handle_command(
         self,

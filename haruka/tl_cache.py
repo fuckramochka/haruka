@@ -13,6 +13,7 @@
 import copy
 import inspect
 import logging
+import os
 import time
 import typing
 
@@ -78,6 +79,10 @@ def hashable(value: typing.Any) -> bool:
 class CustomTelegramClient(TelegramClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Commands must not wait behind updates received while the userbot was
+        # offline. Set HARUKA_CATCH_UP=1 only when historical updates are needed.
+        self._catch_up = os.environ.get("HARUKA_CATCH_UP") == "1"
 
         self._haruka_entity_cache: typing.Dict[
             typing.Union[str, int],
