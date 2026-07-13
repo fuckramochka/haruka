@@ -12,6 +12,14 @@ class Help(Module):
     description = "Visual command atlas and module reference"
     emoji = "🪐"
 
+    def __init__(self):
+        super().__init__()
+        from haruka.core.config import ConfigOption, ModuleConfig
+        self.config = ModuleConfig(
+            ConfigOption("show_empty_modules", False, "Show modules with no commands in .help -f."),
+            ConfigOption("max_catalog_items", 160, "Maximum module names displayed by a catalog page.", int),
+        )
+
     def _module_display_name(self, loaded) -> str:
         return html.escape(loaded.instance.name)
 
@@ -109,7 +117,7 @@ class Help(Module):
 
         core_block = ''.join(sorted(core_lines, key=str.casefold))
         user_block = ''.join(sorted(user_lines, key=str.casefold))
-        empty_block = ''.join(sorted(empty_lines, key=str.casefold)) if force else ''
+        empty_block = ''.join(sorted(empty_lines, key=str.casefold)) if (force and self.config['show_empty_modules']) else ''
 
         if only_core:
             body = f"🪐 {reply}\n<blockquote expandable>{core_block or 'No core modules available'}</blockquote>"

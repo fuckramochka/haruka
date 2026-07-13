@@ -15,7 +15,6 @@ errors are handled — no scattered try/excepts in modules.
 from __future__ import annotations
 
 import asyncio
-import difflib
 import logging
 import traceback
 from typing import TYPE_CHECKING, Optional
@@ -117,11 +116,9 @@ class Dispatcher:
 
         bound = self.loader.find_command(head)
         if bound is None:
-            preferences = getattr(getattr(self.loader, "app_ref", None), "preferences", None)
-            quiet_unknown = bool(preferences and preferences.get().quiet_unknown)
-            if message.outgoing and not quiet_unknown:
-                await self._report_unknown_command(message, head)
-                return True
+            # Unknown prefixed text is ordinary Telegram text, not an error.
+            # Never edit/reply to it and let passive watchers decide whether
+            # they care about the message.
             return False
 
         sender_id = message.from_user.id if message.from_user else None
@@ -184,34 +181,6 @@ class Dispatcher:
                 await ctx.respond(message)
             except Exception:
                 logger.debug("could not report error to chat", exc_info=True)
-
-    async def _report_unknown_command(self, message: Message, head: str) -> None:
-        candidates = self.loader.command_names
-        suggestions = difflib.get_close_matches(head, candidates, n=4, cutoff=0.45)
-        prefix = self.prefix
-        text = render.warning("Unknown command.")
-        text += f"\nTried: {render.mono(prefix + head)}"
-        if suggestions:
-            text += "\n" + render.info(
-                "Closest: " + "  ".join(render.mono(prefix + item) for item in suggestions)
-            )
-        text += "\n" + render.info(
-            "Start with "
-            + render.mono(prefix + "help")
-            + ", "
-            + render.mono(prefix + "lang")
-            + ", "
-            + render.mono(prefix + "menu")
-            + " or "
-            + render.mono(prefix + "modules")
-        )
-        try:
-            if message.outgoing:
-                await message.edit_text(text)
-            else:
-                await message.reply_text(text)
-        except Exception:
-            logger.debug("could not report unknown command", exc_info=True)
 
     # -- watchers --------------------------------------------------------
 

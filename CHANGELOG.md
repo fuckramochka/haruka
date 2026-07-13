@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.5
+
+- Replaced partial personalization with a universal Hikka-style companion-bot Config Center.
+- `.config` / `.cfg` now opens engine values and every native/compatible module option in one inline flow.
+- Added direct typed input, boolean controls, defaults reset, secret masking and preference editing.
+- Restored actual Heroku-style `.dlm` repository-name and raw URL module loading plus repository commands.
+- Restored configurable Info/Ping fields as real module configuration options.
+
+## 2.0.4
+
+- Added a universal Hikka-style Config Center in the companion bot.
+- `.config` / `.cfg` now opens one editor for engine values and every native or compatible module option.
+- Added direct boolean controls, reset-to-default, typed inline input and secret masking.
+- Added engine-level editing for prefix, language, appearance, help behavior, repositories and AI settings.
+- Added Config Center entry point to the persistent Control Center.
+- Exposed real Help and Modules tuning values through the same editor.
+
 ## 2.0.2
 
 - Fixed the first-run Quickstart crash caused by calling the client wrapper incorrectly.

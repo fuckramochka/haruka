@@ -37,6 +37,10 @@ class ControlCenter:
     def __init__(self, app: "Application", bot: "InlineBot"):
         self.app = app
         self.bot = bot
+        self.pending_input: dict[int, str] = {}
+        from haruka.inline.config_center import ConfigCenter
+        self.config_center = ConfigCenter(app, bot)
+        self.app.config_center = self.config_center
 
     def register(self) -> None:
         self.bot.on("cc:", self._route)
@@ -111,6 +115,7 @@ class ControlCenter:
                     "engine": self._engine,
                     "mods": self._modules,
                     "settings": self._settings,
+                    "config": self._config_shortcut,
                     "diag": self._diagnostics,
                     "sec": self._security,
                 }.get(action, self._home)
@@ -274,6 +279,7 @@ class ControlCenter:
         rows += [
             [button("Overview", "home"), button("Engine", "engine")],
             [button("Features", "mods"), button("Settings", "settings")],
+            [button("Config", "config")],
             [button("Health", "diag"), button("Security", "sec")],
             [
                 InlineKeyboardButton("↻ Refresh", callback_data="cc:refresh"),
@@ -371,6 +377,15 @@ class ControlCenter:
             [InlineKeyboardButton(f"Confirm danger · {_toggle(prefs.confirm_dangerous)}", callback_data="cc:pref:confirm_dangerous")],
         ]
         return text, self._nav("settings", buttons)
+
+    def _config_shortcut(self):
+        text = self._header("CONFIG CENTER", "All engine and native-module settings in one place")
+        text += (
+            "\n\n<blockquote>Open the universal editor to configure engine values, "
+            "Info/Ping, repositories, AI and every native module that declares options.</blockquote>"
+        )
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Open universal Config Center", callback_data="cfg:home")]])
+        return text, keyboard
 
     def _diagnostics(self):
         health = collect_health(self.app.settings.db_path)

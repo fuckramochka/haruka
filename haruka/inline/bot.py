@@ -62,6 +62,9 @@ class InlineBot:
 
         self.control = ControlCenter(self.app, self)
         self.control.register()
+        from haruka.inline.config_center import ConfigCenter
+        self.config_center = ConfigCenter(self.app, self)
+        self.app.config_center = self.config_center
         logger.info("Inline bot @%s ready", self.username)
 
     async def open_control_center(self) -> None:

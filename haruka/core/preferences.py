@@ -14,7 +14,7 @@ class EnginePreferences:
     compact_help: bool = False
     reveal_errors: bool = False
     confirm_dangerous: bool = True
-    quiet_unknown: bool = False
+    quiet_unknown: bool = True
 
 
 class PreferenceStore:

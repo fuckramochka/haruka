@@ -3,14 +3,46 @@
 from __future__ import annotations
 
 import aiohttp
+from pathlib import Path
+from urllib.parse import urlparse
 
 from haruka.api import Context, Module, command, render
 from haruka.utils import is_url
 
 MAX_MODULE_SIZE = 512 * 1024
+PRIMARY_REPO = "https://raw.githubusercontent.com/coddrago/modules/main"
+
+
+def _raw_url(url: str) -> str:
+    if "github.com" in url and "/blob/" in url:
+        repo, rest = url.split("github.com/", 1)[1].split("/blob/", 1)
+        return "https://raw.githubusercontent.com/" + repo + "/" + rest
+    if "gitlab.com" in url and "/-/blob/" in url:
+        return url.replace("/-/blob/", "/-/raw/")
+    return url
+
+
+async def _catalog(db) -> dict[str, str]:
+    repos = [PRIMARY_REPO, *(db.get("modules", "repos", []) or [])]
+    found = {}
+    for repo in repos:
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=25)) as session:
+                async with session.get(str(repo).rstrip("/") + "/full.txt") as response:
+                    if response.status != 200: continue
+                    listing = await response.text()
+        except Exception:
+            continue
+        for line in listing.splitlines():
+            item = line.strip()
+            if not item or item.startswith("#"): continue
+            url = item if item.startswith("http") else str(repo).rstrip("/") + "/" + (item if item.endswith(".py") else item + ".py")
+            found.setdefault(Path(urlparse(url).path).stem.casefold(), url)
+    return found
 
 
 async def _download_module(url: str) -> str:
+    url = _raw_url(url)
     if not is_url(url):
         raise ValueError("Only public HTTP(S) URLs are allowed")
     timeout = aiohttp.ClientTimeout(total=30)
@@ -31,6 +63,48 @@ class ModuleManager(Module):
     name = "Modules"
     description = "Install and manage modules"
     emoji = "\N{ELECTRIC PLUG}"
+
+    @command(aliases=["dlm"], doc="Install by Heroku repository name or URL", usage="[name|url] [name...]")
+    async def dlmod(self, ctx: Context):
+        if not ctx.args:
+            catalog = await _catalog(ctx.db)
+            if not catalog:
+                await ctx.error("No module catalog available."); return
+            names = " | ".join(f"<code>{name}</code>" for name in sorted(catalog)[:160])
+            await ctx.respond("☁️ <b>Available modules</b>\n<blockquote expandable>" + names + "</blockquote>\nUse <code>.dlm module_name</code>.")
+            return
+        loaded, failed = [], []
+        catalog = await _catalog(ctx.db)
+        for value in ctx.args[:20]:
+            url = _raw_url(value) if value.startswith("http") else catalog.get(Path(value).stem.casefold())
+            if not url:
+                failed.append(value); continue
+            try:
+                code = await _download_module(url)
+                loaded.extend(await ctx.loader.install_from_source(code, Path(urlparse(url).path).name or "module.py"))
+            except Exception:
+                failed.append(value)
+        await ctx.card("DLM", {"Loaded": ", ".join(loaded) or "none", "Failed": ", ".join(failed) or "none"})
+
+    @command(doc="Add a module repository with full.txt", usage="<url>")
+    async def addrepo(self, ctx: Context):
+        repo = ctx.args_raw.strip().rstrip("/")
+        if not repo: await ctx.error("Pass a repository URL."); return
+        catalog = await _catalog(type("D", (), {"get": lambda _, owner, key, default=None: [repo]})())
+        if not catalog: await ctx.error("Repository has no readable full.txt."); return
+        repos = list(ctx.db.get("modules", "repos", []) or [])
+        if repo not in repos: repos.append(repo); await ctx.db.set("modules", "repos", repos)
+        await ctx.ok("Repository added.")
+
+    @command(doc="Remove an additional module repository", usage="<url>")
+    async def delrepo(self, ctx: Context):
+        repo = ctx.args_raw.strip().rstrip("/"); repos = list(ctx.db.get("modules", "repos", []) or [])
+        if repo not in repos: await ctx.error("Repository is not configured."); return
+        repos.remove(repo); await ctx.db.set("modules", "repos", repos); await ctx.ok("Repository removed.")
+
+    @command(doc="List module repositories")
+    async def repos(self, ctx: Context):
+        await ctx.respond(render.bullet_list([PRIMARY_REPO, *(ctx.db.get("modules", "repos", []) or [])], header="Module repositories"))
 
     @command(aliases=["lm", "load"], doc="Install a module from a reply or URL", usage="[url]")
     async def loadmod(self, ctx: Context):
