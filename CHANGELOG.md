@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.3.0 — "Prism" (plugins, import fix, real localization)
+
+- **Plugin system (behaviour extensions).** Brand-new plugin framework that is
+  distinct from modules: plugins hook the engine lifecycle to customise how the
+  *userbot itself* behaves rather than adding Telegram commands. A `Plugin`
+  base class exposes optional hooks — `before_command` (veto), `after_command`,
+  `transform_outgoing` (rewrite every reply), `on_incoming`, `on_error`,
+  `on_load`/`on_unload` — plus db-backed, per-plugin options. Plugins run in
+  ascending `priority` order and are fail-soft (a raising plugin is logged and
+  skipped). Ships with two built-ins: **Signature** (append a configurable
+  footer to every reply) and **CommandMetrics** (count command usage).
+  Manage them from chat with the new `Plugins` module: `.plugins`, `.plugin`,
+  `.plugon` / `.plugoff`, `.plugset`, `.plugreload`, `.plugunload`, and
+  `.ploadplugin` (install a replied `.py` file into the new plugins folder).
+- **Fixed: "attempted relative import with no known parent package".** Heroku/
+  Hikka modules that use relative imports (`from .. import loader, utils`) now
+  load correctly — user modules are executed inside a synthetic
+  `heroku.modules` package and the compat shims are registered as real
+  sub-packages so relative imports resolve.
+- **Localization that actually shows up.** Added `Context.t()` / `Context.tr`
+  so modules can translate strings, and localized the most-visible surface —
+  the `help` module — end-to-end. New `help.*` keys added to the English,
+  Ukrainian and Russian packs, so switching language with `.lang` now visibly
+  changes the command atlas, hints and errors.
+
 ## 2.2.0 — "Nova" (fresh Telegram features)
 
 New user-facing modules mapped to Telegram's 2026 updates, chosen after

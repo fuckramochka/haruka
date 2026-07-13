@@ -65,6 +65,11 @@ class Settings(BaseModel):
     def modules_dir(self) -> Path:
         return self.data_dir / "modules"
 
+    @property
+    def plugins_dir(self) -> Path:
+        """Where user behavior plugins live (distinct from command modules)."""
+        return self.data_dir / "plugins"
+
 
 @dataclass
 class ConfigOption:

@@ -304,7 +304,12 @@ class Loader:
         self._pending_manifest = manifest
         import_key = re.sub(r"[^a-zA-Z0-9_]", "_", path.stem)
         digest = hashlib.sha1(str(path).encode(), usedforsecurity=False).hexdigest()[:10]
-        import_name = f"haruka_user_{import_key}_{digest}"
+        # Execute the module *inside* the compatibility package so that legacy
+        # relative imports (``from .. import loader, utils``) resolve instead of
+        # raising "attempted relative import with no known parent package".
+        from haruka.compat.hikka_runtime import USER_MODULE_PACKAGE
+
+        import_name = f"{USER_MODULE_PACKAGE}.{import_key}_{digest}"
         spec = importlib.util.spec_from_file_location(import_name, path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Cannot import {path}")

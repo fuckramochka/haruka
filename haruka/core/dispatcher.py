@@ -53,6 +53,8 @@ class Dispatcher:
         self._handler = None
         self._watcher_tasks: set[asyncio.Task] = set()
         self._watcher_slots = asyncio.Semaphore(100)
+        # Behaviour plugins, set by the Application once loaded.
+        self.plugins = None
 
     # -- setup -----------------------------------------------------------
 
@@ -106,6 +108,8 @@ class Dispatcher:
 
     async def _on_message(self, _, message: Message) -> None:
         try:
+            if self.plugins is not None:
+                await self.plugins.run_incoming(message)
             text = message.text or message.caption or ""
             if text and text.startswith(self.prefix):
                 handled = await self._route_command(message, text)
@@ -181,10 +185,18 @@ class Dispatcher:
 
     async def _execute(self, handler, ctx: Context, head: str) -> None:
         try:
+            if self.plugins is not None:
+                allowed = await self.plugins.run_before_command(ctx)
+                if not allowed:
+                    return
             await handler(ctx)
+            if self.plugins is not None:
+                await self.plugins.run_after_command(ctx)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 - rendered to user
+            if self.plugins is not None:
+                await self.plugins.run_error(ctx, exc)
             tb = mask_secrets(traceback.format_exc())
             logger.error("Command '%s' failed: %s", head, exc)
             core = getattr(self.loader, "app_ref", None)

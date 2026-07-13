@@ -9,6 +9,7 @@ from haruka.core.config import ConfigOption, ModuleConfig
 from haruka.core.context import Context
 from haruka.core.metadata import ModuleManifest
 from haruka.core.module import Module, callback, command, watcher
+from haruka.core.plugins import Plugin
 from haruka.core.security import Role
 from haruka.ui import render
 from haruka.ui.theme import get_theme
@@ -20,6 +21,7 @@ __all__ = [
     "Context",
     "Module",
     "ModuleConfig",
+    "Plugin",
     "ModuleManifest",
     "Role",
     "callback",

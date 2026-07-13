@@ -18,6 +18,15 @@ logger = logging.getLogger(__name__)
 
 _INSTALLED = False
 
+# User modules are executed *inside* this synthetic package so that the
+# relative imports real Hikka/Heroku modules use at the top of the file
+# (``from .. import loader, utils`` / ``from . import loader``) resolve to our
+# shims instead of raising "attempted relative import with no known parent
+# package". Aliases cover both community naming conventions.
+USER_MODULE_PACKAGE = "heroku.modules"
+_COMPAT_PACKAGE_ROOTS = ("heroku", "hikka")
+_SHIM_NAMES = ("loader", "utils", "translations", "validators")
+
 
 # -- loader.* ----------------------------------------------------------------
 
@@ -197,15 +206,56 @@ def _build_validators_module() -> types.ModuleType:
     return mod
 
 
+def _build_shims() -> dict[str, types.ModuleType]:
+    return {
+        "loader": _build_loader_module(),
+        "utils": _build_utils_module(),
+        "translations": _build_translations_module(),
+        "validators": _build_validators_module(),
+    }
+
+
+def _register_compat_packages(shims: dict[str, types.ModuleType]) -> None:
+    """Create fake ``heroku``/``hikka`` packages hosting the shim submodules.
+
+    Real community modules import their framework relatively, e.g.
+    ``from .. import loader, utils``. Executing a user module under
+    :data:`USER_MODULE_PACKAGE` (``heroku.modules.<name>``) means ``..`` is
+    ``heroku`` and ``.`` is ``heroku.modules`` — so we expose the shims under
+    both levels of both naming roots.
+    """
+    for root in _COMPAT_PACKAGE_ROOTS:
+        root_pkg = sys.modules.get(root)
+        if root_pkg is None:
+            root_pkg = types.ModuleType(root)
+            root_pkg.__path__ = []  # mark as a package
+            sys.modules[root] = root_pkg
+        modules_pkg_name = f"{root}.modules"
+        modules_pkg = sys.modules.get(modules_pkg_name)
+        if modules_pkg is None:
+            modules_pkg = types.ModuleType(modules_pkg_name)
+            modules_pkg.__path__ = []
+            sys.modules[modules_pkg_name] = modules_pkg
+            setattr(root_pkg, "modules", modules_pkg)
+        for name in _SHIM_NAMES:
+            shim = shims[name]
+            # Expose at both ``root.name`` (for ``from ..``) and
+            # ``root.modules.name`` (for ``from .``).
+            sys.modules.setdefault(f"{root}.{name}", shim)
+            sys.modules.setdefault(f"{modules_pkg_name}.{name}", shim)
+            setattr(root_pkg, name, shim)
+            setattr(modules_pkg, name, shim)
+
+
 def install_hikka_runtime() -> None:
     """Register the shim modules once, before any user module is imported."""
     global _INSTALLED
     if _INSTALLED:
         return
-    sys.modules.setdefault("loader", _build_loader_module())
-    sys.modules.setdefault("utils", _build_utils_module())
-    sys.modules.setdefault("translations", _build_translations_module())
-    sys.modules.setdefault("validators", _build_validators_module())
+    shims = _build_shims()
+    for name, shim in shims.items():
+        sys.modules.setdefault(name, shim)
+    _register_compat_packages(shims)
     _INSTALLED = True
     logger.info("Hikka compatibility runtime installed")
 

@@ -38,6 +38,7 @@ class Application:
         self.ai = None
         self.preferences = None
         self.translator = None
+        self.plugins = None
         self.web = None
         self.telegram_log_handler = None
         self._stopped = False
@@ -102,6 +103,16 @@ class Application:
 
         await self.loader.load_builtins()
         await self.loader.load_user_modules()
+
+        # Behaviour plugins: hook the engine lifecycle to customise how the
+        # userbot itself behaves (distinct from command modules).
+        from haruka.core.plugins import PluginManager
+
+        self.plugins = PluginManager(self, self.db)
+        await self.plugins.load_builtins()
+        await self.plugins.load_user_plugins(self.settings.plugins_dir)
+        self.dispatcher.plugins = self.plugins
+
         await self._finish_startup_experience()
 
         # Automation engine (triggers + scheduler).
@@ -228,6 +239,8 @@ class Application:
             await self.web.stop()
         if self.dispatcher is not None:
             await self.dispatcher.stop()
+        if self.plugins is not None:
+            await self.plugins.shutdown()
         if self.loader is not None:
             await self.loader.shutdown()
         if self.inline_bot is not None:

@@ -132,3 +132,110 @@ class SupplyChainTests(unittest.TestCase):
         self.assertEqual(blocked, [])
         self.assertIn("httpx", warnings)
         self.assertNotIn("kurigram", warnings)
+
+
+class PluginSystemTests(unittest.IsolatedAsyncioTestCase):
+    def _manager(self):
+        import types as _types
+        from haruka.core.plugins import PluginManager
+        core = _types.SimpleNamespace(loader=None, client=None)
+        return PluginManager(core, FakeDB())
+
+    async def test_outgoing_transform_runs_in_priority_order(self):
+        from haruka.core.plugins import Plugin
+
+        class A(Plugin):
+            name = "A"
+            priority = 10
+            async def transform_outgoing(self, text, ctx=None):
+                return text + "[A]"
+
+        class B(Plugin):
+            name = "B"
+            priority = 20
+            async def transform_outgoing(self, text, ctx=None):
+                return text + "[B]"
+
+        m = self._manager()
+        await m._register(B(), "user", None)
+        await m._register(A(), "user", None)
+        self.assertEqual(await m.apply_outgoing("x", None), "x[A][B]")
+
+    async def test_before_command_veto(self):
+        from haruka.core.plugins import Plugin
+
+        class Veto(Plugin):
+            name = "Veto"
+            async def before_command(self, ctx):
+                return False
+
+        m = self._manager()
+        await m._register(Veto(), "user", None)
+        self.assertFalse(await m.run_before_command(None))
+
+    async def test_disabled_plugin_is_skipped(self):
+        from haruka.core.plugins import Plugin
+
+        class Sig(Plugin):
+            name = "Sig"
+            async def transform_outgoing(self, text, ctx=None):
+                return text + "!"
+
+        m = self._manager()
+        await m._register(Sig(), "user", None)
+        await m.set_enabled("Sig", False)
+        self.assertEqual(await m.apply_outgoing("x", None), "x")
+        await m.set_enabled("Sig", True)
+        self.assertEqual(await m.apply_outgoing("x", None), "x!")
+
+    async def test_plugin_options_override(self):
+        from haruka.core.plugins import Plugin
+
+        class Opt(Plugin):
+            name = "Opt"
+            options = {"text": "default"}
+
+        m = self._manager()
+        await m._register(Opt(), "user", None)
+        inst = m._find("Opt").instance
+        self.assertEqual(inst.option("text"), "default")
+        await inst.set_option("text", "custom")
+        self.assertEqual(inst.option("text"), "custom")
+
+
+class HikkaRelativeImportTests(unittest.TestCase):
+    def test_relative_import_module_loads(self):
+        """A Heroku-style module using ``from .. import loader, utils`` must load
+        under the synthetic compat package without the "no known parent
+        package" error."""
+        import importlib.util
+        import sys
+        import tempfile
+        from pathlib import Path
+        from haruka.compat.hikka_runtime import (
+            USER_MODULE_PACKAGE,
+            install_hikka_runtime,
+        )
+
+        install_hikka_runtime()
+        self.assertIn("heroku.loader", sys.modules)
+        self.assertIn("heroku.utils", sys.modules)
+
+        source = (
+            "from .. import loader, utils\n"
+            "from . import loader as loader2\n"
+            "RESULT = (loader is loader2)\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "relmod.py"
+            path.write_text(source, encoding="utf-8")
+            import_name = f"{USER_MODULE_PACKAGE}.relmod_test"
+            spec = importlib.util.spec_from_file_location(import_name, path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = mod
+            try:
+                spec.loader.exec_module(mod)  # must not raise
+                self.assertTrue(mod.RESULT)
+                self.assertTrue(hasattr(mod.loader, "Module"))
+            finally:
+                sys.modules.pop(spec.name, None)

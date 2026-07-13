@@ -59,6 +59,27 @@ class Context:
         return core.security if core is not None else None
 
     @property
+    def translator(self):
+        """The shared :class:`Translator`, if the app is wired."""
+        core = self.core
+        return getattr(core, "translator", None) if core is not None else None
+
+    def t(self, key: str, default: Optional[str] = None, **values: Any) -> str:
+        """Localize ``key`` in the active language (English fallback).
+
+        Falls back to ``default`` (or the key itself) when no translator is
+        available, so module and test code can call it unconditionally.
+        """
+        translator = self.translator
+        if translator is None:
+            text = default if default is not None else key
+            try:
+                return text.format(**values) if values else text
+            except (KeyError, IndexError, ValueError):
+                return text
+        return translator.t(key, default, **values)
+
+    @property
     def args(self) -> list[str]:
         """Shell-like arguments, preserving quoted values."""
         if not self.args_raw:
@@ -103,8 +124,19 @@ class Context:
     # -- responding (all output goes through the design system) -----------
 
     async def respond(self, text: str, **kwargs: Any) -> Message:
-        """Edit own message (userbot style) or reply, masking secrets."""
+        """Edit own message (userbot style) or reply, masking secrets.
+
+        Behaviour plugins get to transform every outgoing message here — this
+        is the single choke point through which all userbot output flows.
+        """
         text = mask_secrets(text)
+        core = self.core
+        manager = getattr(core, "plugins", None) if core is not None else None
+        if manager is not None:
+            try:
+                text = await manager.apply_outgoing(text, self)
+            except Exception:
+                logger.debug("plugin outgoing transform failed", exc_info=True)
         kwargs.setdefault("parse_mode", ParseMode.HTML)
         try:
             if self.message.outgoing:

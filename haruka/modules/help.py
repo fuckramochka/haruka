@@ -58,7 +58,7 @@ class Help(Module):
                     target = ctx.loader.modules.get(canonical)
                     exact = False
         if target is None:
-            await ctx.error(f"Nothing named <code>{html.escape(query)}</code> was found.")
+            await ctx.error(ctx.t("help.not_found", name=f"<code>{html.escape(query)}</code>"))
             return
 
         commands = [item for item in target.commands if not item.spec.hidden]
@@ -76,9 +76,9 @@ class Help(Module):
         if cmd_lines:
             lines.append("<blockquote expandable>" + "\n".join(cmd_lines) + "</blockquote>")
         if not exact:
-            lines.append("<i>Exact module was not found, showing the closest match.</i>")
+            lines.append(f"<i>{html.escape(ctx.t('help.closest_match'))}</i>")
         if target.origin == "builtin":
-            lines.append("<i>Core module</i>")
+            lines.append(f"<i>{html.escape(ctx.t('help.core_module'))}</i>")
         await ctx.respond("\n".join(lines))
 
     @command(aliases=["h", "commands"], doc="[args] | Help with your modules", usage="[feature|command|-f|-c|-l]")
@@ -96,7 +96,7 @@ class Help(Module):
         total = len(ctx.loader.modules)
         hidden_count = 0 if force else sum(name in hidden for name in ctx.loader.module_names())
 
-        reply = f"<b>{total}</b> modules available • <b>{hidden_count}</b> hidden"
+        reply = ctx.t("help.summary", total=f"<b>{total}</b>", hidden=f"<b>{hidden_count}</b>")
         core_lines, user_lines, empty_lines = [], [], []
 
         for name in ctx.loader.module_names():
@@ -119,20 +119,23 @@ class Help(Module):
         user_block = ''.join(sorted(user_lines, key=str.casefold))
         empty_block = ''.join(sorted(empty_lines, key=str.casefold)) if (force and self.config['show_empty_modules']) else ''
 
+        no_core = ctx.t("help.no_core")
+        no_external = ctx.t("help.no_external")
+        none_available = ctx.t("help.none_available")
         if only_core:
-            body = f"🪐 {reply}\n<blockquote expandable>{core_block or 'No core modules available'}</blockquote>"
+            body = f"🪐 {reply}\n<blockquote expandable>{core_block or no_core}</blockquote>"
         elif only_loaded:
-            body = f"🪐 {reply}\n<blockquote expandable>{user_block or 'No external modules loaded'}</blockquote>"
+            body = f"🪐 {reply}\n<blockquote expandable>{user_block or no_external}</blockquote>"
         else:
             body = (
                 f"🪐 {reply}\n"
-                f"<blockquote expandable>{core_block or 'No core modules available'}</blockquote>"
-                f"<blockquote expandable>{user_block + empty_block or 'No modules available'}</blockquote>"
+                f"<blockquote expandable>{core_block or no_core}</blockquote>"
+                f"<blockquote expandable>{user_block + empty_block or none_available}</blockquote>"
                 f"<blockquote expandable>"
-                f"<code>{html.escape(prefix)}help module</code> — open module details\n"
-                f"<code>{html.escape(prefix)}help -c</code> — only core modules\n"
-                f"<code>{html.escape(prefix)}help -l</code> — only loaded modules\n"
-                f"<code>{html.escape(prefix)}help -f</code> — ignore hidden modules\n"
+                f"<code>{html.escape(prefix)}help module</code> — {html.escape(ctx.t('help.open_details'))}\n"
+                f"<code>{html.escape(prefix)}help -c</code> — {html.escape(ctx.t('help.only_core_hint'))}\n"
+                f"<code>{html.escape(prefix)}help -l</code> — {html.escape(ctx.t('help.only_loaded_hint'))}\n"
+                f"<code>{html.escape(prefix)}help -f</code> — {html.escape(ctx.t('help.ignore_hidden_hint'))}\n"
                 f"<code>{html.escape(prefix)}lang</code> • <code>{html.escape(prefix)}menu</code> • <code>{html.escape(prefix)}presets</code>"
                 f"</blockquote>"
             )
