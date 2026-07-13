@@ -1,43 +1,131 @@
-"""Entry point: ``python -m haruka`` or the ``haruka`` console script."""
+"""Entry point. Checks for user and starts main script"""
 
-from __future__ import annotations
+# ©️ Dan Gazizullin, 2021-2023
+# This file is a part of Hikka Userbot
+# 🌐 https://github.com/hikariatama/Hikka
+# You can redistribute it and/or modify it under the terms of the GNU AGPLv3
+# 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-import asyncio
-import logging
+# ©️ Codrago, 2024-2030
+# This file is a part of Haruka Userbot
+# 🌐 https://github.com/coddrago/Heroku
+# You can redistribute it and/or modify it under the terms of the GNU AGPLv3
+# 🔑 https://www.gnu.org/licenses/agpl-3.0.html
+
+import getpass
+import hashlib
+import os
+import subprocess
 import sys
 
+from ._internal import restart
 
-def _setup_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
+if "--no-git" in sys.argv:
+    os.environ["HARUKA_NO_GIT"] = "1"
+
+
+def get_file_hash(filename):
+    hasher = hashlib.sha256()
+    try:
+        with open(filename, "rb") as f:
+            hasher.update(f.read())
+        return hasher.hexdigest()
+    except FileNotFoundError:
+        return None
+
+
+def deps():
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "-q",
+            "--disable-pip-version-check",
+            "--no-warn-script-location",
+            "-r",
+            "requirements.txt",
+        ],
+        check=True,
+        timeout=600,
+        capture_output=True,
     )
-    logging.getLogger("pyrogram").setLevel(logging.WARNING)
+    with open(".requirements_hash", "w") as f:
+        f.write(get_file_hash("requirements.txt"))
 
 
-def run() -> None:
-    if sys.version_info < (3, 10):
-        raise SystemExit("Haruka requires Python 3.10+")
+if (
+    getpass.getuser() == "root"
+    and "--root" not in " ".join(sys.argv)
+    and all(trigger not in os.environ for trigger in {"DOCKER", "NO_SUDO"})
+):
+    print("\U0001f6ab" * 15)
+    print("You attempted to run Haruka on behalf of root user")
+    print("Please, create a new user and restart script")
+    print("If this action was intentional, pass --root argument instead")
+    print("\U0001f6ab" * 15)
+    print()
+    print("Type force_insecure to ignore this warning")
+    print("Type no_sudo if your system has no sudo (Debian vibes)")
+    inp = input("> ").lower()
+    if inp != "force_insecure":
+        sys.exit(1)
+    elif inp == "no_sudo":
+        os.environ["NO_SUDO"] = "1"
+        print("Added NO_SUDO in your environment variables")
+        restart()
 
-    _setup_logging()
-
-    # Load .env if present (dev convenience).
+if sys.version_info < (3, 10, 0):
+    print("\U0001f6ab Error: you must use at least Python version 3.10.0")
+elif __package__ != "haruka":
+    print(
+        "\U0001f6ab Error: you cannot run this as a script; you must execute as a package"
+    )
+else:
     try:
-        from dotenv import load_dotenv
-
-        load_dotenv()
-    except ImportError:
+        import harukatl
+    except Exception:
         pass
+    else:
+        try:
+            import harukatl  # noqa: F811
 
-    from haruka.core.app import Application
+            if tuple(map(int, harukatl.__version__.split("."))) < (1, 7, 2):
+                raise ImportError
+        except ImportError:
+            print("\U0001f504 Installing dependencies...")
+            deps()
+            restart()
 
-    app = Application()
     try:
-        asyncio.run(app.run_forever())
-    except KeyboardInterrupt:
-        pass
+        from . import log
 
+        log.init()
+        from . import main
+    except ImportError as e:
+        print(
+            f"{str(e)}\n\U0001f504 Attempting dependencies installation... Just wait ⏱"
+        )
+        deps()
+        restart()
 
-if __name__ == "__main__":
-    run()
+    if "HARUKA_DO_NOT_RESTART" in os.environ:
+        del os.environ["HARUKA_DO_NOT_RESTART"]
+    if "HARUKA_DO_NOT_RESTART2" in os.environ:
+        del os.environ["HARUKA_DO_NOT_RESTART2"]
+
+    prev_hash = None
+    if os.path.exists(".requirements_hash"):
+        with open(".requirements_hash", "r") as f:
+            prev_hash = f.read().strip()
+
+    if prev_hash != get_file_hash("requirements.txt"):
+        print(
+            "\U0001f504 Detected changes in requirements.txt, updating dependencies..."
+        )
+        deps()
+        restart()
+
+    main.haruka.main()

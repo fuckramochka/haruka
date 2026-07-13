@@ -1,108 +1,258 @@
-# Haruka Engine
+<div align="center">
+  <img src="https://github.com/hikariatama/assets/raw/master/1326-command-window-line-flat.webp" height="80">
+  <h1>Haruka Userbot</h1>
+  <p>Advanced Telegram userbot with enhanced security and modern features</p>
+  
+  <p>
+    <a href="https://www.codacy.com/gh/coddrago/Heroku/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=coddrago/Heroku&amp;utm_campaign=Badge_Grade">
+      <img src="https://app.codacy.com/project/badge/Grade/97e3ea868f9344a5aa6e4d874f83db14" alt="Codacy Grade">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/languages/code-size/coddrago/Heroku" alt="Code Size">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/issues-raw/coddrago/Heroku" alt="Open Issues">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/license/coddrago/Heroku" alt="License">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/commit-activity/m/coddrago/Heroku" alt="Commit Activity">
+    </a>
+    <br>
+    <a href="#">
+      <img src="https://img.shields.io/github/forks/coddrago/Heroku?style=flat" alt="Forks">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/stars/coddrago/Heroku" alt="Stars">
+    </a>
+    <a href="https://github.com/psf/black">
+      <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code Style: Black">
+    </a>
+    <br>
+    <a href="https://github.com/coddrago/Heroku/blob/master/README.md">
+      <img src="https://img.shields.io/badge/lang-en-red.svg" alt="En">
+    </a>
+    <a href="https://github.com/coddrago/Heroku/blob/master/README_RU.md">
+      <img src="https://img.shields.io/badge/lang-ru-green.svg" alt="Ru">
+    </a>
+  </p>
+  
+</div>
 
-> A modern, engine-first runtime for Telegram userbots.
+### Manual Installation (VPS/VDS Server)
 
-[![CI](https://github.com/fuxckramochka/haruka/actions/workflows/ci.yml/badge.svg)](https://github.com/fuxckramochka/haruka/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-2783DE)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-E56458)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0-46A171)](CHANGELOG.md)
+---
 
-[Русский](README_RU.md) · [User guide](docs/USER_GUIDE_RU.md) · [Developer guide](docs/DEVELOPER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [Haruka vs Heroku](docs/HARUKA_VS_HEROKU_RU.md)
+## ⚠️ Security Notice
 
-Haruka is not a userbot assembled from a preset pack. It is a compact runtime for building, loading and operating userbot capabilities: a stable module SDK, transactional hot loading, centralized dispatch, permissions, SQLite persistence, inline management UI and raw MTProto access through Kurigram.
+> **Important Security Advisory**  
+> While Haruka implements extended security measures, installing modules from untrusted developers may still cause damage to your server/account.
+> 
+> **Recommendations:**
+> - ✅ Download modules exclusively from official repositories or trusted developers
+> - ❌ Do NOT install modules if unsure about their safety
+> - ⚠️ Exercise caution with unknown commands (`.terminal`, `.eval`, `.ecpp`, etc.)
 
-## Why Haruka
+---
 
-- **Engine-first:** infrastructure and contracts are primary; bundled capabilities use the same public SDK.
-- **Transactional loading:** failed imports and lifecycle hooks roll back cleanly.
-- **One command bus:** parsing, aliases, roles, rate limits, feature gates and errors live in one dispatcher.
-- **Native Control Center:** engine health, settings, security and feature management in a polished inline shell.
-- **Stable author API:** modules import from `haruka.api`, not private internals.
-- **Compatibility boundary:** selected Hikka modules can run through an adapter without shaping the new core.
-- **Modern Telegram escape hatch:** `haruka.tl` exposes raw MTProto when high-level Kurigram APIs are not enough.
+## 🚀 Installation
 
-## One-click setup
+### VPS/VDS
+> **Note for VPS/VDS Users:**  
+> Add `--proxy-pass` to enable SSH tunneling  
+> Add `--no-web` for console-only setup  
+> Add `--root` for root users (to avoid entering force_insecure)
+<details> <summary><b>Ubuntu / Debian</b></summary>
 
-No `nano`, `.env` editing or terminal configuration is required.
+  ```bash
+  sudo apt update && sudo apt install git python3 -y && \
+  git clone https://github.com/coddrago/Heroku && \
+  cd Haruka && \
+  python3 -m venv .venv && \
+  source .venv/bin/activate && \
+  pip install -r requirements.txt && \
+  python3 -m haruka
+  ```
+</details>
 
-- **Windows:** double-click `Install Haruka.cmd`.
-- **macOS:** double-click `Install Haruka.command`.
-- **Linux desktop:** open `Haruka Setup.desktop`, or double-click `launcher.pyw`.
+<details>
+<summary><b>Fedora</b></summary>
+  
+  ```bash
+  sudo dnf update -y && sudo dnf install git python3 -y && \
+  git clone https://github.com/coddrago/Heroku && \
+  cd Haruka && \
+  python3 -m venv .venv && \
+  source .venv/bin/activate && \
+  python3 -m pip install -r requirements.txt && \
+  python3 -m haruka
+  ```
+</details>
 
-The installer repairs Python and the virtual environment, then opens a button-driven browser wizard for API credentials, QR/phone login and engine settings.
-
-## Quick start
-
-Requirements: Python 3.10+, a Telegram account and API credentials from [my.telegram.org](https://my.telegram.org/apps).
-
+<details>
+<summary><b>Arch Linux</b></summary>
+  
 ```bash
-git clone https://github.com/fuxckramochka/haruka.git
-cd haruka
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[full]'
-cp .env.example .env
-python -m haruka
+sudo pacman -Syu --noconfirm && sudo pacman -S git python --noconfirm --needed && \
+git clone https://github.com/coddrago/Heroku && \
+cd Haruka && \
+python3 -m venv .venv && \
+source .venv/bin/activate && \
+python3 -m pip install -r requirements.txt && \
+python3 -m haruka
 ```
+</details>
 
-On first run, Haruka asks for `API_ID`, `API_HASH`, phone, code and 2FA password when applicable. Runtime data is stored in `~/.haruka` unless `HARUKA_DATA_DIR` is set.
 
-### Docker
 
-```bash
-cp .env.example .env
-mkdir -p data
-docker compose run --rm haruka
-```
+### Other
+<details>
+  <summary><b>WSL(Windows)</b></summary>
 
-The first run must be interactive. Afterwards:
+  > **⚠️ WARNING: Can be unstable!**
 
-```bash
-docker compose up -d
-```
+  1. **Download WSL.** For this open window PowerShell with admin rights and write in console 
+  ```powershell
+  wsl --install -d Ubuntu-22.04
+  ```
+  
+  > *⚠️For install beed Windows 10 build 2004 or Windows 11 of any version and PC with virtualization support.*
+  > *For installation on earlier OS, please refer to this [page](https://learn.microsoft.com/ru-ru/windows/wsl/install-manual).*
+  
+  2. **Restart PC and start programm Ubuntu 22.04.x**
+  3. **Enter this command(RMB):** 
+  ```bash
+  curl -Ss https://bootstrap.pypa.io/get-pip.py | python3
+  ```
+  > *⚠️ If yellow warnings appear, enter export PATH="/home/username/.local/bin:$PATH" replacing /home/username/.local/bin with the path mentioned in the message*
+  
+  4. **Enter this command(RMB):**
+  ```bash
+  clear && git clone https://github.com/coddrago/Heroku && cd Haruka && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && python3 -m haruka
+  ```
+  > **🔗How to get API_ID and API_HASH?:** [Video](https://youtu.be/DcqDA249Lhg?t=24)
+  
+</details>
 
-## Control Center
+<details>
+  <summary><b>Phone(Userland)</b></summary>
+  
+  1. <b>Install UserLAnd from</b> <a href="https://play.google.com/store/apps/details?id=tech.ula">the link</a>
+  2. <b>Open it, choose Ubuntu —&gt; Minimal —&gt; Terminal</b>
+  3. <b>Wait for the distribution to install, you can pour some tea</b> 
+  4. <b>After successful installation, a terminal will open in front of you, write there:</b>
+    
+  ```bash
+  sudo apt update && sudo apt upgrade -y && sudo apt install python3 git python3-pip -y && git clone https://github.com/coddrago/Heroku && cd Haruka && python3 -m venv .venv && source .venv/bin/activate && sudo pip install -r requirements.txt && python3 -m haruka
+  ```
 
-Set a companion bot token with `.setbot <token>`, restart Haruka, open the bot once with `/start`, then use `.menu` or `.dashboard`. The shell contains overview, command gates, features, visual skins, diagnostics and security state.
+5. <b>At the end of the installation, a link will appear, follow it and enter your account details to log in.</b>
+> **Voila! You have installed Haruka on UserLAnd.**
+</details>
 
-## Minimal extension
+### Official hostings
+<details>
+<summary><b>🌘 HikkaHost</b></summary>
+  
+  1. Go to [@hikkahost_bot](https://.me/hikkahost_bot)
+  2. Press "Install"
+  3. Choose "🪐 Haruka"
+  And continue installation.
+  > **After that, you will receive a link, open it and login in your account.**
 
-```python
-from haruka.api import Context, Module, command
+</details>
 
-class Hello(Module):
-    name = "Hello"
-    author = "you"
-    version = "1.0.0"
-    description = "A minimal Haruka extension"
+<details>
+<summary><b>⬇️ Lavhost</b></summary>
 
-    @command(aliases=["hi"], doc="Say hello")
-    async def hello(self, ctx: Context):
-        await ctx.ok(f"Hello, {ctx.sender_name}!")
-```
+To install, just go to [@lavhostbot](https://t.me/lavhostbot) and follow these steps:
 
-Drop the file into `~/.haruka/modules/` or load a reviewed public URL with `.loadmod`.
+1. Enter the command `/buy`, select and pay the invoice
+2. Send the payment receipt if required
+3. After payment confirmation, type `/install` and select Haruka
+4. Follow the bot's instructions
 
-## Documentation
+</details>
 
-| Audience | Document |
-|---|---|
-| Users | [Russian user guide](docs/USER_GUIDE_RU.md) |
-| Module authors | [Developer guide](docs/DEVELOPER_GUIDE.md) |
-| Core contributors | [Architecture](docs/ARCHITECTURE.md) |
-| Operators | [Deployment guide](docs/DEPLOYMENT.md) |
-| Security researchers | [Security policy](SECURITY.md) |
-| Contributors | [Contributing guide](CONTRIBUTING.md) |
-| Project comparison | [Haruka vs Heroku](docs/HARUKA_VS_HEROKU_RU.md) |
+<details>
+  <summary><b>🧃Jamhost</b></summary>
+    
+  1. Go to [@jamhostbot](https://t.me/jamhostbot) and write the command <code>/pay</code>
+  2. Pay for the subscription on the website
+  3. After payment, write the command <code>/install</code> to the bot, select " <b>🪐 Haruka</b> " in the list of userbots and select the desired server
+  4. Log in using the link provided by the bot
+</details>
 
-## Project status
 
-Haruka 2.0 is an early, working engine. Core contracts and tests exist, but the ecosystem is smaller than mature Hikka-derived projects. Review the [roadmap](ROADMAP.md) before depending on unfinished compatibility or web onboarding features.
 
-## Security
+## Additional Features
 
-A userbot controls a real Telegram account. Third-party Python modules run with the process permissions and cannot be made safe by branding alone. Review sources, isolate the host, protect session files and never publish `.env`, `*.session` or the data directory. See [SECURITY.md](SECURITY.md).
+<details>
+  <summary><b>🔒 Automatic Database Backuper</b></summary>
+  <img src="https://user-images.githubusercontent.com/36935426/202905566-964d2904-f3ce-4a14-8f05-0e7840e1b306.png" width="400">
+</details>
 
-## License
+<details>
+  <summary><b>👋 Welcome Installation Screens</b></summary>
+  <img src="https://user-images.githubusercontent.com/36935426/202905720-6319993b-697c-4b09-a194-209c110c79fd.png" width="300">
+  <img src="https://user-images.githubusercontent.com/36935426/202905746-2a511129-0208-4581-bb27-7539bd7b53c9.png" width="300">
+</details>
 
-Haruka is distributed under the [GNU AGPL-3.0-or-later](LICENSE).
+---
+
+## ✨ Key Features & Improvements
+
+| Feature | Description |
+|---------|-------------|
+| 🆕 **Latest Telegram Layer** | Support for forums and newest Telegram features |
+| 🔒 **Enhanced Security** | Native entity caching and targeted security rules |
+| 🎨 **UI/UX Improvements** | Modern interface and user experience |
+| 📦 **Core Modules** | Improved and new core functionality |
+| ⏱ **Rapid Bug Fixes** | Faster resolution than FTG/GeekTG |
+| 🔄 **Backward Compatibility** | Works with FTG, GeekTG and Hikka modules |
+| ▶️ **Inline Elements** | Forms, galleries and lists support |
+
+---
+
+## 📋 Requirements
+
+- **Python 3.10+**
+- **API Credentials** from [Telegram Apps](https://my.telegram.org/apps)
+
+---
+
+## 📚 Documentation
+
+| Type | Link |
+|------|------|
+| **User Documentation** | [haruka-ub.xyz](https://haruka-ub.xyz/) |
+| **Developer Docs** | [dev.haruka-ub.xyz](https://dev.haruka-ub.xyz/) |
+
+---
+
+## 💬 Support
+
+[![Telegram Support](https://img.shields.io/badge/Telegram-Support_Group-2594cb?logo=telegram)](https://t.me/haruka_talks)
+
+---
+
+## ⚠️ Usage Disclaimer
+
+> This project is provided as-is. The developer takes **NO responsibility** for:
+> - Account bans or restrictions
+> - Message deletions by Telegram
+> - Security issues from scam modules
+> - Session leaks from malicious modules
+>
+> **Security Recommendations:**
+> - Enable `.api_fw_protection`
+> - Avoid installing many modules at once
+> - Review [Telegram's Terms](https://core.telegram.org/api/terms)
+
+---
+
+## 🙏 Acknowledgements
+
+- [**Hikari**](https://gitlab.com/hikariatama) for Hikka (project foundation)
+- [**Lonami**](https://t.me/lonami) for Telethon (Haruka-TL backbone)

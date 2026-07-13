@@ -1,14 +1,127 @@
-#!/usr/bin/env sh
-set -u
-find_python(){ for p in python3 python; do command -v "$p" >/dev/null 2>&1 && "$p" -c 'import sys;raise SystemExit(sys.version_info<(3,10))' >/dev/null 2>&1 && { echo "$p"; return; }; done; }
-PY="$(find_python || true)"
-if [ -z "$PY" ]; then
- echo "Python bootstrap not found. Trying system package manager..."
- if command -v apt-get >/dev/null; then sudo apt-get update && sudo apt-get install -y python3 python3-venv python3-pip git
- elif command -v dnf >/dev/null; then sudo dnf install -y python3 python3-pip git
- elif command -v pacman >/dev/null; then sudo pacman -S --needed --noconfirm python python-pip git
- elif command -v brew >/dev/null; then brew install python@3.12 git
- else echo "Install Python 3.10+ and rerun."; exit 1; fi
- PY="$(find_python)"
+#!/bin/bash
+set -e
+
+# === Проверка поддержки терминала ===
+if [ -z "$TERM" ] || [ "$TERM" = "dumb" ]; then
+    echo "Your terminal does not support color formatting. Using basic mode."
+    BLUE=""
+    CYAN=""
+    GREEN=""
+    RED=""
+    YELLOW=""
+    PURPLE=""
+    RESET=""
+    BOLD=""
+else
+    BLUE="\033[34m"
+    CYAN="\033[36m"
+    GREEN="\033[32m"
+    RED="\033[31m"
+    YELLOW="\033[33m"
+    PURPLE="\033[35m"
+    RESET="\033[0m"
+    BOLD="\033[1m"
 fi
-exec "$PY" bootstrap.py "$@"
+
+center_title() {
+    local title="$1"
+    local title_length=${#title}
+    local width=$(tput cols 2>/dev/null || echo 50)
+    [ $width -lt $((title_length + 4)) ] && width=$((title_length + 4))
+    local padding=$(( (width - title_length) / 2 ))
+    local left_padding=$(printf "%${padding}s" | tr ' ' '-')
+    local right_padding=$(printf "%${padding}s" | tr ' ' '-')
+    [ $(( (width - title_length) % 2 )) -ne 0 ] && right_padding="${right_padding}-"
+    echo "${left_padding}${title}${right_padding}"
+}
+
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+}
+
+LOG_DIR="Haruka"
+LOG_FILE="$LOG_DIR/haruka_installer.log"
+apt install curl
+mkdir -p "$LOG_DIR"
+
+while true; do
+    clear
+    echo -e "${PURPLE}${BOLD}"
+    curl -s https://raw.githubusercontent.com/coddrago/Heroku/refs/heads/dev-test/assets/download.txt   
+    echo -e "${RESET}"
+    echo -e "${CYAN}${BOLD}$(center_title 'Menu')${RESET}"
+    echo -e "${BLUE}1. Install Haruka${RESET}"
+    echo -e "${BLUE}2. Install Haruka in venv${RESET}"
+    echo -e "${BLUE}3. Install Haruka in Docker${RESET}"
+    echo -e "${BLUE}4. Remove Haruka${RESET}"
+    echo -e "${BLUE}0. Exit${RESET}"
+    echo -e "${CYAN}$(center_title '')${RESET}"
+    read -p $'\033[33m> \033[0m ' choice
+
+    case $choice in
+        1)
+            echo -e "${GREEN}Installing Haruka...${RESET}"
+            (apt-get update && apt-get install -y git python3 python3-pip) &>> "$LOG_FILE" & spinner $!
+            if [ -d "Haruka" ]; then
+                echo -e "${YELLOW}Haruka directory already exists. Skipping clone.${RESET}"
+            else
+                git clone https://github.com/coddrago/Heroku &>> "$LOG_FILE" & spinner $!
+            fi
+            cd Haruka
+            pip3 install -r requirements.txt &>> "$LOG_FILE" & spinner $!
+            python3 -m haruka &>> "$LOG_FILE" & spinner $!
+            echo -e "${GREEN}Completed successfully!${RESET}"
+            read -p $'\033[33mPress Enter to continue... \033[0m'
+            cd ..
+            ;;
+        2)
+            echo -e "${GREEN}Installing Haruka in venv...${RESET}"
+            (apt-get update && apt-get install -y git python3 python3-pip python3-venv) &>> "$LOG_FILE" & spinner $!
+            if [ -d "Haruka" ]; then
+                echo -e "${YELLOW}Haruka directory already exists. Skipping clone.${RESET}"
+            else
+                git clone https://github.com/coddrago/Heroku &>> "$LOG_FILE" & spinner $!
+            fi
+            cd Haruka
+            python3 -m venv Haruka_UB
+            source Haruka_UB/bin/activate
+            pip install -r requirements.txt &>> "$LOG_FILE" & spinner $!
+            python3 -m haruka &>> "$LOG_FILE" & spinner $!
+            echo -e "${GREEN}Completed successfully!${RESET}"
+            read -p $'\033[33mPress Enter to continue... \033[0m'
+            cd ..
+            ;;
+        3)
+            echo -e "${GREEN}Installing Haruka in Docker...${RESET}"
+            (apt-get update && apt-get install curl -y) &>> "$LOG_FILE" & spinner $!
+            bash <(curl -s https://raw.githubusercontent.com/coddrago/Heroku/refs/heads/master/docker.sh) &>> "$LOG_FILE" & spinner $!
+            echo -e "${GREEN}Completed successfully!${RESET}"
+            read -p $'\033[33mPress Enter to continue... \033[0m'
+            ;;
+        4)
+            echo -e "${RED}Removing Haruka...${RESET}"
+            rm -rf Haruka &>> "$LOG_FILE"
+            docker stop haruka_ub &>> "$LOG_FILE" || true
+            docker rm -f haruka_ub &>> "$LOG_FILE" || true
+            echo -e "${GREEN}Completed successfully!${RESET}"
+            read -p $'\033[33mPress Enter to continue... \033[0m'
+            ;;
+        0)
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Invalid choice!${RESET}"
+            read -p $'\033[33mPress Enter to continue... \033[0m'
+            ;;
+    esac
+done

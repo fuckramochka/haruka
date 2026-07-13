@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Haruka Setup
-Comment=Install, repair and open Haruka
-Exec=python3 launcher.pyw
-Terminal=false
-Icon=utilities-terminal
-Categories=Network;Utility;

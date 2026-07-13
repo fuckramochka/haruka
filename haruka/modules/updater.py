@@ -1,141 +1,796 @@
-"""Updater: restart in place or pull the latest code from git.
+# ©️ Dan Gazizullin, 2021-2023
+# This file is a part of Hikka Userbot
+# 🌐 https://github.com/hikariatama/Hikka
+# You can redistribute it and/or modify it under the terms of the GNU AGPLv3
+# 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-Restart notes survive the re-exec through the database, so the user gets a
-"restarted successfully" edit on the original message after boot.
-"""
+# ©️ Codrago, 2024-2030
+# This file is a part of Haruka Userbot
+# 🌐 https://github.com/coddrago/Heroku
+# You can redistribute it and/or modify it under the terms of the GNU AGPLv3
+# 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
-from __future__ import annotations
 
+import ast
 import asyncio
+import contextlib
+import logging
+import os
+import subprocess
 import sys
 import time
-from pathlib import Path
+import typing
 
-from haruka.api import Context, Module, Role, command, render
-from haruka.version import version_string
+import aiohttp
+import git
+from git import GitCommandError, Repo
+from harukatl.extensions.html import CUSTOM_EMOJIS
+from harukatl.tl.functions.messages import (
+    GetDialogFiltersRequest,
+    UpdateDialogFilterRequest,
+)
+from harukatl.tl.types import DialogFilter, Message, TextWithEntities
 
-ROOT = Path(__file__).resolve().parents[2]
+from .. import loader, main, utils, version
+from .._internal import restart
+from ..inline.types import BotInlineCall, InlineCall
+
+logger = logging.getLogger(__name__)
+NO_GIT = os.environ.get("HARUKA_NO_GIT") == "1"
 
 
-async def _git(*args: str) -> tuple[int, str]:
-    proc = await asyncio.create_subprocess_exec(
-        "git", *args,
-        cwd=ROOT,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-    )
-    out, _ = await proc.communicate()
-    return proc.returncode or 0, out.decode("utf-8", "replace").strip()
+@loader.tds
+class UpdaterMod(loader.Module):
+    """Updates itself, tracks latest Haruka releases, and notifies you, if update is required"""
 
+    strings = {"name": "Updater"}
 
-class Updater(Module):
-    name = "Updater"
-    description = "Restart and update the userbot"
-    emoji = "\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS}"
+    def __init__(self):
+        self._notified = None
+        self.config = loader.ModuleConfig(
+            loader.ConfigValue(
+                "GIT_ORIGIN_URL",
+                "https://github.com/coddrago/Heroku",
+                lambda: self.strings("origin_cfg_doc"),
+                validator=loader.validators.Link(),
+            ),
+            loader.ConfigValue(
+                "disable_notifications",
+                doc=lambda: self.strings("_cfg_doc_disable_notifications"),
+                validator=loader.validators.Boolean(),
+            ),
+            loader.ConfigValue(
+                "autoupdate",
+                False,
+                doc=lambda: self.strings("_cfg_doc_autoupdate"),
+                validator=loader.validators.Boolean(),
+            ),
+        )
 
-    async def on_load(self):
-        note = self.db.get("updater", "restart_note")
-        if not note:
-            return
-        await self.db.set("updater", "restart_note", None)
-        try:
-            elapsed = time.time() - note["ts"]
-            await self.app.app.edit_message_text(
-                note["chat_id"],
-                note["message_id"],
-                render.ok(f"Restarted in {elapsed:.1f}s — {version_string()}"),
+    async def _set_autoupdate_state(self, call: BotInlineCall, state: bool):
+        self.set("autoupdate", True)
+        if not state:
+            self.config["autoupdate"] = False
+            await self.inline.bot(
+                call.answer(
+                    self.strings("autoupdate_off").format(prefix=self.get_prefix())
+                )
             )
+            return
+
+        self.config["autoupdate"] = True
+
+        await self.inline.bot(call.answer(self.strings("autoupdate_on")))
+
+    def get_changelog(self) -> str:
+        if NO_GIT:
+            return False
+        try:
+            with git.Repo() as repo:
+                for remote in repo.remotes:
+                    remote.fetch()
+
+                if not (diff := [*repo.iter_commits(f"HEAD..origin/{version.branch}")]):
+                    return False
         except Exception:
-            pass
+            return False
 
-    async def _restart(self, ctx: Context, text: str) -> None:
-        msg = await ctx.loading(text)
-        await self.db.set(
-            "updater",
-            "restart_note",
-            {"chat_id": ctx.chat_id, "message_id": msg.id, "ts": time.time()},
+        res = "\n".join(
+            f"<b>{commit.hexsha[:7]}</b>:"
+            f" <i>{utils.escape_html(commit.message.splitlines()[0])}</i>"
+            for commit in diff[:10]
         )
-        await ctx.core.restart()
 
-    async def _install_requirements(self) -> tuple[bool, str]:
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "-e",
-            ".",
-            cwd=ROOT,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
+        if diff.count("\n") >= 10:
+            res += self.strings("more").format(len(diff) - 10)
+
+        return res
+
+    def get_latest(self) -> str:
+        if NO_GIT:
+            return ""
+        try:
+            with git.Repo() as repo:
+                return next(
+                    repo.iter_commits(f"origin/{version.branch}", max_count=1)
+                ).hexsha
+        except Exception:
+            return ""
+
+    @loader.loop(interval=60, autostart=True)
+    async def poller_announcement(self):
+        async with aiohttp.ClientSession() as session:
+            try:
+                url = "https://api.github.com/repos/coddrago/assets/contents/haruka/announcment.txt"
+                r = await session.get(
+                    url,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                    headers={"Accept": "application/vnd.github.v3.raw"},
+                )
+
+                match r.status:
+                    case 200:
+                        announcement = (await r.text()).strip()
+                        previous = self.get("announcement", "")
+                        if announcement and announcement != previous:
+                            await self.inline.bot.send_message(
+                                self.tg_id,
+                                self.strings("announcement").format(announcement),
+                            )
+                            self.set("announcement", announcement)
+                    case _:
+                        pass
+            except Exception:
+                pass
+
+    @loader.loop(interval=60, autostart=True)
+    async def poller(self):
+        if NO_GIT:
+            return
+        if (
+            self.config["disable_notifications"] and not self.config["autoupdate"]
+        ) or not self.get_changelog():
+            return
+
+        self._pending = self.get_latest()
+
+        if (
+            self.get("ignore_permanent", False)
+            and self.get("ignore_permanent") == self._pending
+        ):
+            await asyncio.sleep(60)
+            return
+
+        if self._pending not in {utils.get_git_hash(), self._notified}:
+            if not self.config["autoupdate"]:
+                manual_update = True
+            else:
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        r = await session.get(
+                            url=f"https://api.github.com/repos/coddrago/Heroku/contents/haruka/version.py?ref={version.branch}",
+                            headers={"Accept": "application/vnd.github.v3.raw"},
+                        )
+                        text = await r.text()
+
+                    new_version = ""
+                    for line in text.splitlines():
+                        if line.strip().startswith("__version__"):
+                            new_version = ast.literal_eval(line.split("=")[1])
+
+                    if version.__version__[0] == new_version[0]:
+                        manual_update = False
+                    else:
+                        logger.info("Got a major update, updating manually")
+                        manual_update = True
+                except:
+                    manual_update = True
+
+            if manual_update:
+                m = await self.inline.bot.send_photo(
+                    self.tg_id,
+                    "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/updated.png",
+                    caption=self.strings("update_required").format(
+                        utils.get_git_hash()[:6],
+                        '<a href="https://github.com/coddrago/Heroku/compare/{}...{}">{}</a>'.format(
+                            utils.get_git_hash()[:12],
+                            self.get_latest()[:12],
+                            self.get_latest()[:6],
+                        ),
+                        self.get_changelog(),
+                    ),
+                    reply_markup=self._markup(),
+                )
+
+                self._notified = self._pending
+                self.set("ignore_permanent", False)
+
+                await self._delete_all_upd_messages()
+
+                self.set("upd_msg", m.message_id)
+
+            else:
+                m = await self.inline.bot.send_photo(
+                    self.tg_id,
+                    "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/updated.png",
+                    caption=self.strings("autoupdate_notifier").format(
+                        self.get_latest()[:6],
+                        self.get_changelog(),
+                        '<a href="https://github.com/coddrago/Heroku/compare/{}...{}">{}</a>'.format(
+                            utils.get_git_hash()[:12],
+                            self.get_latest()[:12],
+                            "🔎 diff",
+                        ),
+                    ),
+                )
+                await self.invoke("update", "-f", peer=self.inline.bot_username)
+
+    async def _delete_all_upd_messages(self):
+        for client in self.allclients:
+            with contextlib.suppress(Exception):
+                await client.loader.inline.bot.delete_message(
+                    client.tg_id,
+                    client.loader.db.get("Updater", "upd_msg"),
+                )
+
+    @loader.callback_handler()
+    async def update_call(self, call: InlineCall):
+        """Process update buttons clicks"""
+        if NO_GIT:
+            await call.answer("Git disabled via --no-git.", show_alert=True)
+            return
+        if call.data not in {"haruka/update", "haruka/ignore_upd"}:
+            return
+
+        if call.data == "haruka/ignore_upd":
+            self.set("ignore_permanent", self.get_latest())
+            await self.inline.bot(call.answer(self.strings("latest_disabled")))
+            return
+
+        await self._delete_all_upd_messages()
+
+        with contextlib.suppress(Exception):
+            await call.delete()
+
+        await self.invoke("update", "-f", peer=self.inline.bot_username)
+
+    @loader.command()
+    async def changelog(self, message: Message):
+        """Shows the changelog of the last major update"""
+        with open("CHANGELOG.md", mode="r", encoding="utf-8") as f:
+            changelog = f.read().split("##")[1].strip()
+        if (await self._client.get_me()).premium:
+            changelog.replace(
+                "🌑 Haruka",
+                "<tg-emoji emoji-id=5192765204898783881>🌘</tg-emoji><tg-emoji emoji-id=5195311729663286630>🌘</tg-emoji><tg-emoji emoji-id=5195045669324201904>🌘</tg-emoji>",
+            )
+
+        await utils.answer(message, self.strings("changelog").format(changelog))
+
+    @loader.command()
+    async def restart(self, message: Message):
+        args = utils.get_args_raw(message)
+        secure_boot = any(trigger in args for trigger in {"--secure-boot", "-sb"})
+        try:
+            if (
+                "-f" in args
+                or not self.inline.init_complete
+                or not await self.inline.form(
+                    message=message,
+                    text=self.strings(
+                        "secure_boot_confirm" if secure_boot else "restart_confirm"
+                    ),
+                    reply_markup=[
+                        {
+                            "text": self.strings("btn_restart"),
+                            "callback": self.inline_restart,
+                            "args": (secure_boot,),
+                            "style": "primary",
+                        },
+                        {
+                            "text": self.strings("cancel"),
+                            "action": "close",
+                            "style": "danger",
+                        },
+                    ],
+                )
+            ):
+                raise
+        except Exception:
+            await self.restart_common(message, secure_boot)
+
+    async def inline_restart(self, call: InlineCall, secure_boot: bool = False):
+        await self.restart_common(call, secure_boot=secure_boot)
+
+    async def process_restart_message(self, msg_obj: typing.Union[InlineCall, Message]):
+        self.set(
+            "selfupdatemsg",
+            (
+                msg_obj.inline_message_id
+                if hasattr(msg_obj, "inline_message_id")
+                else f"{utils.get_chat_id(msg_obj)}:{msg_obj.id}"
+            ),
         )
-        out, _ = await proc.communicate()
-        return proc.returncode == 0, out.decode("utf-8", "replace")
 
-    async def _after_code_changed(self, ctx: Context, text: str) -> None:
-        ok, dependency_output = await self._install_requirements()
-        if not ok:
-            await ctx.error(text + "\n" + render.code_block(dependency_output[-1200:], "text"))
-            return
-        await self._restart(ctx, text)
-
-    @command(role=Role.OWNER, doc="Restart the userbot")
-    async def restart(self, ctx: Context):
-        await self._restart(ctx, "Restarting...")
-
-    @command(role=Role.OWNER, doc="Pull the latest code and restart")
-    async def update(self, ctx: Context):
-        await ctx.loading("Checking for updates...")
-        code, out = await _git("pull", "--ff-only")
-        if code != 0:
-            await ctx.error(f"<code>git pull</code> failed:\n<pre>{render.escape(out[-1000:])}</pre>")
-            return
-        if "Already up to date" in out:
-            await ctx.ok(f"Already up to date — {version_string()}")
-            return
-        await self._after_code_changed(ctx, "Update pulled, restarting...")
-
-    @command(role=Role.OWNER, doc="Reset to the previous git commit and restart")
-    async def rollback(self, ctx: Context):
-        code, out = await _git("rev-parse", "--is-inside-work-tree")
-        if code != 0 or out.strip() != "true":
-            await ctx.error("Rollback requires a git checkout.")
-            return
-        code, out = await _git("reset", "--hard", "HEAD~1")
-        if code != 0:
-            await ctx.error(render.code_block(out[-1200:], "text"))
-            return
-        await self._after_code_changed(ctx, "Rollback applied, restarting...")
-
-    @command(role=Role.SUDO, doc="Show latest changelog section")
-    async def changelog(self, ctx: Context):
-        path = ROOT / "CHANGELOG.md"
-        if not path.exists():
-            await ctx.error("CHANGELOG.md not found.")
-            return
-        text = path.read_text(encoding="utf-8", errors="replace")
-        if "## " in text:
-            section = text.split("## ", 1)[1]
-            if "\n## " in section:
-                section = section.split("\n## ", 1)[0]
-            section = "## " + section
+    async def restart_common(
+        self,
+        msg_obj: typing.Union[InlineCall, Message],
+        secure_boot: bool = False,
+    ):
+        if (
+            hasattr(msg_obj, "form")
+            and isinstance(msg_obj.form, dict)
+            and "uid" in msg_obj.form
+            and msg_obj.form["uid"] in self.inline._units
+            and "message" in self.inline._units[msg_obj.form["uid"]]
+        ):
+            message = self.inline._units[msg_obj.form["uid"]]["message"]
         else:
-            section = text[:3000]
-        await ctx.respond(render.title("Changelog", self.emoji) + "\n" + render.code_block(section[-3200:], "markdown"))
+            message = msg_obj
 
-    @command(role=Role.SUDO, doc="Show source repository and docs")
-    async def source(self, ctx: Context):
-        await ctx.card(
-            "Source",
-            {
-                "Repository": "https://github.com/fuxckramochka/haruka",
-                "Docs": "README.md / docs/",
-                "Version": version_string(),
-            },
+        if secure_boot:
+            self._db.set(loader.__name__, "secure_boot", True)
+
+        msg_obj = await utils.answer(
+            msg_obj,
+            self.strings("restarting_caption").format(
+                utils.get_platform_emoji()
+                if self._client.haruka_me.premium
+                else "Haruka"
+            ),
         )
 
-    @command(role=Role.SUDO, doc="Show current version and git revision")
-    async def version(self, ctx: Context):
-        _, rev = await _git("rev-parse", "--short", "HEAD")
-        _, branch = await _git("rev-parse", "--abbrev-ref", "HEAD")
-        await ctx.card("Version", {"Haruka": version_string(), "Branch": branch or "?", "Commit": rev or "?"})
+        await self.process_restart_message(msg_obj)
+
+        self.db.set("Updater", "modules_count", len(self.allmodules.modules))
+
+        self.set("restart_ts", time.time())
+
+        with contextlib.suppress(Exception):
+            await main.haruka.web.stop()
+
+        handler = logging.getLogger().handlers[0]
+        handler.setLevel(logging.CRITICAL)
+
+        for client in self.allclients:
+            # Terminate main loop of all running clients
+            # Won't work if not all clients are ready
+            if client is not message.client:
+                await client.disconnect()
+
+        if "LAVHOST" in os.environ:
+            await self.client.send_message("lavhostbot", "🔄 Restart")
+            return
+
+        await message.client.disconnect()
+        restart()
+
+    async def download_common(self):
+        try:
+            with Repo(os.path.dirname(utils.get_base_dir())) as repo:
+                origin = repo.remote("origin")
+                r = origin.pull()
+                new_commit = repo.head.commit
+                for info in r:
+                    if info.old_commit:
+                        for d in new_commit.diff(info.old_commit):
+                            if d.b_path == "requirements.txt":
+                                return True
+            return False
+        except git.exc.InvalidGitRepositoryError:
+            repo = Repo.init(os.path.dirname(utils.get_base_dir()))
+            with repo:
+                origin = repo.create_remote("origin", self.config["GIT_ORIGIN_URL"])
+                origin.fetch()
+                repo.create_head("master", origin.refs.master)
+                repo.heads.master.set_tracking_branch(origin.refs.master)
+                repo.heads.master.checkout(True)
+            return False
+
+    @staticmethod
+    def req_common():
+        # Now we have downloaded new code, install requirements
+        logger.debug("Installing new requirements...")
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-r",
+                    os.path.join(
+                        os.path.dirname(utils.get_base_dir()),
+                        "requirements.txt",
+                    ),
+                    "--user",
+                ],
+                check=True,
+                timeout=600,
+                capture_output=True,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            logger.exception("Req install failed")
+
+    @loader.command()
+    async def update(self, message: Message):
+        if NO_GIT:
+            await utils.answer(
+                message,
+                "<b>Git disabled via --no-git.</b>",
+            )
+            return
+        try:
+            args = utils.get_args_raw(message)
+            current = utils.get_git_hash()
+            with git.Repo() as repo:
+                upcoming = next(
+                    repo.iter_commits(f"origin/{version.branch}", max_count=1)
+                ).hexsha
+            if (
+                "-f" in args
+                or not self.inline.init_complete
+                or not await self.inline.form(
+                    message=message,
+                    text=(
+                        self.strings("update_confirm").format(
+                            current, current[:8], upcoming, upcoming[:8]
+                        )
+                        if upcoming != current
+                        else self.strings("no_update")
+                    ),
+                    reply_markup=[
+                        {
+                            "text": self.strings("btn_update"),
+                            "callback": self.inline_update,
+                            "style": "primary",
+                        },
+                        {
+                            "text": self.strings("cancel"),
+                            "action": "close",
+                            "style": "danger",
+                        },
+                    ],
+                )
+            ):
+                raise
+        except Exception:
+            await self.inline_update(message)
+
+    @loader.command()
+    async def autoupdate(self, message: Message):
+        """| switch autoupdate state"""
+        self.config["autoupdate"] = not self.config["autoupdate"]
+        if self.config["autoupdate"]:
+            await utils.answer(message, self.strings["autoupdate_on"])
+        else:
+            await utils.answer(
+                message, self.strings["autoupdate_off"].format(prefix=self.get_prefix())
+            )
+
+    async def inline_update(
+        self,
+        msg_obj: typing.Union[InlineCall, Message],
+        hard: bool = False,
+    ):
+        # We don't really care about asyncio at this point, as we are shutting down
+        if hard:
+            os.system(f"cd {utils.get_base_dir()} && cd .. && git reset --hard HEAD")
+
+        try:
+            if "LAVHOST" in os.environ:
+                msg_obj = await utils.answer(
+                    msg_obj,
+                    self.strings("restarting_caption").format(
+                        utils.get_platform_emoji()
+                        if self._client.haruka_me.premium
+                        else "Haruka"
+                    ),
+                )
+                await self.process_restart_message(msg_obj)
+                self.set("restart_ts", time.time())
+                await self.client.send_message("lavhostbot", "/update")
+                return
+
+            with contextlib.suppress(Exception):
+                msg_obj = await utils.answer(msg_obj, self.strings("downloading"))
+
+            req_update = await self.download_common()
+
+            with contextlib.suppress(Exception):
+                msg_obj = await utils.answer(msg_obj, self.strings("installing"))
+
+            if req_update:
+                self.req_common()
+
+            await self.restart_common(msg_obj)
+        except GitCommandError:
+            if not hard:
+                await self.inline_update(msg_obj, True)
+                return
+
+            logger.critical("Got update loop. Update manually via .terminal")
+
+    @loader.command()
+    async def source(self, message: Message):
+        await utils.answer(
+            message,
+            self.strings("source").format(self.config["GIT_ORIGIN_URL"]),
+        )
+
+    async def client_ready(self):
+        try:
+            with git.Repo():
+                pass
+        except Exception as e:
+            raise loader.LoadError("Can't load due to repo init error") from e
+
+        self._markup = lambda: self.inline.generate_markup(
+            [
+                {
+                    "text": self.strings("update"),
+                    "data": "haruka/update",
+                    "style": "primary",
+                },
+                {
+                    "text": self.strings("ignore"),
+                    "data": "haruka/ignore_upd",
+                    "style": "danger",
+                },
+            ]
+        )
+
+        if self.get("selfupdatemsg") is not None:
+            try:
+                await self.update_complete()
+            except Exception:
+                logger.exception("Failed to complete update!")
+
+        if self.get("do_not_create", False):
+            pass
+        else:
+            try:
+                await self._add_folder()
+            except Exception:
+                logger.exception("Failed to add folder!")
+
+            self.set("do_not_create", True)
+
+        if not self.config["autoupdate"] and not self.get("autoupdate", False):
+            await self.inline.bot.send_photo(
+                self.tg_id,
+                photo="https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/unit_alpha.png",
+                caption=self.strings("autoupdate"),
+                reply_markup=self.inline.generate_markup(
+                    [
+                        [
+                            {
+                                "text": f"✅ Turn on",
+                                "callback": self._set_autoupdate_state,
+                                "args": (True,),
+                                "style": "success",
+                            }
+                        ],
+                        [
+                            {
+                                "text": "🚫 Turn off",
+                                "callback": self._set_autoupdate_state,
+                                "args": (False,),
+                                "style": "danger",
+                            }
+                        ],
+                    ]
+                ),
+            )
+
+    async def _add_folder(self):
+        folders = await self._client(GetDialogFiltersRequest())
+
+        try:
+            folder_id = (
+                max(
+                    (folder for folder in folders.filters if hasattr(folder, "id")),
+                    key=lambda x: x.id,
+                ).id
+                + 1
+            )
+        except ValueError:
+            folder_id = 2
+
+        folders = await self._client(GetDialogFiltersRequest())
+        filters = getattr(folders, "filters", folders)
+        haruka_f = False
+
+        if filters:
+
+            for folder in filters:
+                title = getattr(folder, "title", None)
+
+                if title:
+                    raw_title = getattr(title, "text", title)
+
+                    if str(raw_title).strip() == "Haruka":
+                        haruka_f = True
+
+        if haruka_f is True:
+            return
+        else:
+            try:
+                await self._client(
+                    UpdateDialogFilterRequest(
+                        folder_id,
+                        DialogFilter(
+                            folder_id,
+                            title=TextWithEntities(text="Haruka", entities=[]),
+                            pinned_peers=(
+                                [
+                                    await self._client.get_input_entity(
+                                        self._client.loader.inline.bot_id
+                                    )
+                                ]
+                                if self._client.loader.inline.init_complete
+                                else []
+                            ),
+                            include_peers=[
+                                await self._client.get_input_entity(dialog.entity)
+                                async for dialog in self._client.iter_dialogs(
+                                    None,
+                                    ignore_migrated=True,
+                                )
+                                if "haruka" in dialog.name
+                                or "Haruka" in dialog.name
+                                and dialog.is_channel
+                                or (
+                                    self._client.loader.inline.init_complete
+                                    and dialog.entity.id
+                                    == self._client.loader.inline.bot_id
+                                )
+                                or dialog.entity.id
+                                in [
+                                    2445389036,
+                                    2341345589,
+                                    2410964167,
+                                ]  # official haruka chats
+                            ],
+                            emoticon="🐱",
+                            exclude_peers=[],
+                            contacts=False,
+                            non_contacts=False,
+                            groups=False,
+                            broadcasts=False,
+                            bots=False,
+                            exclude_muted=False,
+                            exclude_read=False,
+                            exclude_archived=False,
+                        ),
+                    )
+                )
+            except Exception:
+                logger.critical(
+                    "Can't create Haruka folder. Possible reasons are:\n"
+                    "- User reached the limit of folders in Telegram\n"
+                    "- User got floodwait\n"
+                    "Ignoring error and adding folder addition to ignore list\n",
+                    exc_info=True,
+                )
+
+    async def update_complete(self):
+        logger.debug("Self update successful! Edit message")
+        start = self.get("restart_ts")
+        try:
+            took = round(time.time() - start)
+        except Exception:
+            took = "n/a"
+
+        msg = self.strings("success").format(utils.ascii_face(), took)
+        ms = self.get("selfupdatemsg")
+
+        if ":" in str(ms):
+            chat_id, message_id = ms.split(":")
+            chat_id, message_id = int(chat_id), int(message_id)
+            await self._client.edit_message(chat_id, message_id, msg)
+            return
+
+        await self.inline.bot.edit_message_text(
+            inline_message_id=ms,
+            text=self.inline.sanitise_text(msg),
+        )
+
+    async def full_restart_complete(self, secure_boot: bool = False):
+        start = self.get("restart_ts")
+
+        try:
+            took = round(time.time() - start)
+        except Exception:
+            took = "n/a"
+
+        self.set("restart_ts", None)
+        ms = self.get("selfupdatemsg")
+
+        modules_count = self.db.get("Updater", "modules_count")
+        try:
+            modules_count = int(modules_count)
+        except Exception:
+            modules_count = len(self.allmodules.modules)
+
+        if modules_count <= len(self.allmodules.modules):
+            msg = self.strings(
+                "secure_boot_complete" if secure_boot else "full_success"
+            ).format(utils.ascii_face(), took)
+        else:
+            fails = modules_count - len(self.allmodules.modules)
+            msg = self.strings(
+                "secure_boot_fail" if secure_boot else "full_fail"
+            ).format(utils.ascii_face(), took, fails)
+
+        if ms is None:
+            return
+
+        self.set("selfupdatemsg", None)
+
+        if ":" in str(ms):
+            chat_id, message_id = ms.split(":")
+            chat_id, message_id = int(chat_id), int(message_id)
+            await self._client.edit_message(chat_id, message_id, msg)
+            await asyncio.sleep(60)
+            await self._client.delete_messages(chat_id, message_id)
+            return
+
+        await self.inline.bot.edit_message_text(
+            inline_message_id=ms,
+            text=self.inline.sanitise_text(msg),
+        )
+
+    @loader.command()
+    async def rollback(self, message: Message):
+        if not (args := utils.get_args_raw(message)).isdigit():
+            await utils.answer(message, self.strings("invalid_args"))
+            return
+        if int(args) > 10:
+            await utils.answer(message, self.strings("rollback_too_far"))
+            return
+        form = await self.inline.form(
+            message=message,
+            text=self.strings("rollback_confirm").format(num=args),
+            reply_markup=[
+                [
+                    {
+                        "text": "✅",
+                        "callback": self.rollback_confirm,
+                        "args": [args],
+                        "style": "success",
+                    }
+                ],
+                [
+                    {
+                        "text": "❌",
+                        "action": "close",
+                        "style": "danger",
+                    }
+                ],
+            ],
+        )
+
+    async def rollback_confirm(self, call: InlineCall, number: int):
+        await utils.answer(call, self.strings("rollback_process").format(num=number))
+        await asyncio.create_subprocess_shell(
+            f"git reset --hard HEAD~{number}", stdout=asyncio.subprocess.PIPE
+        )
+        await self.restart_common(call)
+
+    @loader.command()
+    async def ubstop(self, message: Message):
+        """| stops your userbot"""
+
+        if "LAVHOST" in os.environ:
+            await utils.answer(
+                message,
+                self.strings["ub_stop"].format(emoji=utils.get_platform_emoji()),
+            )
+            await self.client.send_message("lavhostbot", "⏹ Stop")
+        else:
+            await utils.answer(
+                message,
+                self.strings["ub_stop"].format(emoji=utils.get_platform_emoji()),
+            )
+            exit()

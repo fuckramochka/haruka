@@ -1,17 +1,59 @@
-FROM python:3.12-slim
+FROM python:3.14 AS python-base
+FROM python-base AS builder-base
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    HARUKA_DATA_DIR=/data/haruka
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    AIOHTTP_NO_EXTENSIONS=1 \
+    \
+    PYSETUP_PATH="/opt/pysetup" \
+    VENV_PATH="/opt/pysetup/.venv" \
+    \
+    DOCKER=true \
+    GIT_PYTHON_REFRESH=quiet
 
-RUN groupadd --system haruka && useradd --system --gid haruka --home /app haruka
-WORKDIR /app
+RUN apt-get update && \
+    apt-get install -y wget gnupg2 \
 
-COPY pyproject.toml README.md LICENSE ./
-COPY haruka ./haruka
-RUN pip install --no-cache-dir .
+RUN apt-get update && apt-get upgrade -y && apt-get install --no-install-recommends -y \
+    build-essential \
+    curl \
+    ffmpeg \
+    gcc \
+    git \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libcairo2 \
+    libmagic1 \
+    libswscale-dev \
+    openssl \
+    openssh-server \
+    python3 \
+    python3-dev \
+    python3-pip \
+    xfonts-75dpi \
+    xfonts-base \
 
-RUN mkdir -p /data/haruka && chown -R haruka:haruka /app /data/haruka
-USER haruka
-VOLUME ["/data/haruka"]
-CMD ["python", "-m", "haruka"]
+RUN curl -sL https://deb.nodesource.com/setup_18.x -o nodesource_setup.sh && \
+    bash nodesource_setup.sh && \
+    apt-get install -y nodejs && \
+    rm nodesource_setup.sh
+RUN rm -rf /var/lib/apt/lists/ /var/cache/apt/archives/ /tmp/*
+
+WORKDIR /data
+RUN mkdir /data/private
+
+RUN git clone https://github.com/coddrago/Heroku /data/Haruka
+WORKDIR /data/Haruka
+RUN git fetch && git checkout master && git pull
+
+RUN pip install --no-warn-script-location --no-cache-dir -U -r requirements.txt
+
+EXPOSE 8080
+CMD ["python", "-m", "haruka", "--root"]
+

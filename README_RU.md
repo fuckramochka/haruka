@@ -1,93 +1,255 @@
-# Haruka Engine
+<div align="center">
+  <img src="https://github.com/hikariatama/assets/raw/master/1326-command-window-line-flat.webp" height="80">
+  <h1>Haruka Userbot</h1>
+  <p>Продвинутый юзербот для Telegram с повышенной безопасностью и современными функциями</p>
 
-> Современный движок для Telegram-юзерботов, а не очередной пресет модулей.
+  <p>
+    <a href="https://www.codacy.com/gh/coddrago/Heroku/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=coddrago/Heroku&amp;utm_campaign=Badge_Grade">
+      <img src="https://app.codacy.com/project/badge/Grade/97e3ea868f9344a5aa6e4d874f83db14" alt="Codacy Grade">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/languages/code-size/coddrago/Heroku" alt="Code Size">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/issues-raw/coddrago/Heroku" alt="Open Issues">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/license/coddrago/Heroku" alt="License">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/commit-activity/m/coddrago/Heroku" alt="Commit Activity">
+    </a>
+    <br>
+    <a href="#">
+      <img src="https://img.shields.io/github/forks/coddrago/Heroku?style=flat" alt="Forks">
+    </a>
+    <a href="#">
+      <img src="https://img.shields.io/github/stars/coddrago/Heroku" alt="Stars">
+    </a>
+    <a href="https://github.com/psf/black">
+      <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code Style: Black">
+    </a>
+    <br>
+    <a href="https://github.com/coddrago/Heroku/blob/master/README.md">
+      <img src="https://img.shields.io/badge/lang-en-red.svg" alt="En">
+    </a>
+    <a href="https://github.com/coddrago/Heroku/blob/master/README_RU.md">
+      <img src="https://img.shields.io/badge/lang-ru-green.svg" alt="Ru">
+    </a>
+  </p>
+  </p>
+</div>
 
-[![CI](https://github.com/fuxckramochka/haruka/actions/workflows/ci.yml/badge.svg)](https://github.com/fuxckramochka/haruka/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-2783DE)](https://www.python.org/)
-[![Лицензия](https://img.shields.io/badge/license-AGPL--3.0-E56458)](LICENSE)
-[![Версия](https://img.shields.io/badge/version-2.0.0-46A171)](CHANGELOG.md)
+---
 
-[English](README.md) · [Руководство пользователя](docs/USER_GUIDE_RU.md) · [Для разработчиков](docs/DEVELOPER_GUIDE.md) · [Архитектура](docs/ARCHITECTURE.md) · [Haruka против Heroku](docs/HARUKA_VS_HEROKU_RU.md)
+## ⚠️ Уведомление о безопасности
 
-Haruka — компактная платформа, на которой можно создавать, загружать и обслуживать возможности юзербота. Внутри есть единый диспетчер команд, транзакционный загрузчик, роли, SQLite, Control Center, API для расширений и доступ к raw MTProto через Kurigram.
+> Важное предупреждение о безопасности  
+> Хотя Haruka реализует расширенные меры безопасности, установка модулей от ненадежных разработчиков все еще может нанести вред вашему серверу/аккаунту.
+> 
+> Рекомендации:
+> - ✅ Загружайте модули исключительно из официальных репозиториев или от доверенных разработчиков
+> - ❌ НЕ устанавливайте модули, если не уверены в их безопасности
+> - ⚠️ Будьте осторожны с неизвестными командами (.terminal, .eval, .ecpp и т.д.)
 
-## Главное отличие
+---
+## 🚀 Установка
 
-В большинстве юзерботов ядро исторически растёт вокруг встроенных команд и совместимости. В Haruka сначала определяется контракт движка, а встроенные возможности используют тот же публичный API, что и сторонние расширения.
+### VPS/VDS
+> **Примечание для пользователей VPS/VDS:**  
+> Добавьте `--proxy-pass` для включения SSH-туннелирования  
+> Добавьте `--no-web` для настройки только через консоль  
+> Добавьте `--root` для пользователей root (чтобы избежать ввода force_insecure)
 
-- чистый импорт для авторов: `haruka.api`;
-- откат неудачной загрузки без «призрачных» команд;
-- включение и отключение команд и возможностей без удаления файлов;
-- единая обработка прав, лимитов, алиасов и ошибок;
-- красивый встроенный Control Center;
-- диагностика памяти, CPU, диска, БД и фоновых задач;
-- адаптер части Hikka-модулей без переноса старой архитектуры в новое ядро.
+<details>
+  <summary><b>Ubuntu / Debian</b></summary>
 
-## Установка в один клик
+  ```bash
+  sudo apt update && sudo apt install git python3 -y && \
+  git clone https://github.com/coddrago/Heroku && \
+  cd Haruka && \
+  python3 -m venv .venv && \
+  source .venv/bin/activate && \
+  pip install -r requirements.txt && \
+  python3 -m haruka
+  ```
+</details>
 
-Редактировать `.env`, открывать `nano` или вводить настройки в терминале не нужно.
+<details>
+<summary><b>Fedora</b></summary>
+  
+  ```bash
+  sudo dnf update -y && sudo dnf install git python3 -y && \
+  git clone https://github.com/coddrago/Heroku && \
+  cd Haruka && \
+  python3 -m venv .venv && \
+  source .venv/bin/activate && \
+  python3 -m pip install -r requirements.txt && \
+  python3 -m haruka
+  ```
+</details>
 
-- **Windows:** дважды нажми `Install Haruka.cmd`.
-- **macOS:** дважды нажми `Install Haruka.command`.
-- **Linux с рабочим столом:** открой `Haruka Setup.desktop` или `launcher.pyw`.
-
-Установщик сам проверит Python и окружение, исправит типовые ошибки и откроет браузерный мастер с кнопками для API, QR/телефонного входа и настроек движка.
-
-## Быстрый запуск
-
-Нужны Python 3.10+, Telegram-аккаунт и `API_ID`/`API_HASH` с [my.telegram.org](https://my.telegram.org/apps).
-
+<details>
+<summary><b>Arch Linux</b></summary>
+  
 ```bash
-git clone https://github.com/fuxckramochka/haruka.git
-cd haruka
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[full]'
-cp .env.example .env
-python -m haruka
+sudo pacman -Syu --noconfirm && sudo pacman -S git python --noconfirm --needed && \
+git clone https://github.com/coddrago/Heroku && \
+cd Haruka && \
+python3 -m venv .venv && \
+source .venv/bin/activate && \
+python3 -m pip install -r requirements.txt && \
+python3 -m haruka
+```
+</details>
+
+
+
+### Другие
+<details>
+  <summary><b>WSL(Windows)</b></summary>
+
+  > **⚠️ ВНИМАНИЕ: Может быть нестабильно!**
+
+1. **Скачайте WSL.** Для этого откройте PowerShell с правами администратора и введите в консоль
+```powershell
+wsl --install -d Ubuntu-22.04
 ```
 
-При первом запуске Haruka запросит данные входа. По умолчанию база, сессия и загруженные расширения находятся в `~/.haruka`.
+> *⚠️Для установки требуется Windows 10 сборки 2004 или Windows 11 любой версии и ПК с поддержкой виртуализации.*
+> *Для установки на более ранние ОС, пожалуйста, обратитесь к этой [странице](https://learn.microsoft.com/ru-ru/windows/wsl/install-manual).*
 
-## Docker
-
+2. **Перезагрузите ПК и запустите программу Ubuntu 22.04.x**
+3. **Введите эту команду (ПКМ):**
 ```bash
-cp .env.example .env
-mkdir -p data
-docker compose run --rm haruka
+curl -Ss https://bootstrap.pypa.io/get-pip.py | python3
 ```
+> *⚠️ Если появятся желтые предупреждения, введите export PATH="/home/username/.local/bin:$PATH", заменив /home/username/.local/bin путем, указанным в сообщении*
 
-Первый запуск интерактивный. После авторизации:
-
+4. **Введите эту команду (ПКМ):**
 ```bash
-docker compose up -d
+clear && git clone https://github.com/coddrago/Heroku && cd Haruka && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && python3 -m haruka
 ```
+> **🔗Как получить API_ID и API_HASH?:** [Видео](https://youtu.be/DcqDA249Lhg?t=24)
+  
+</details>
 
-## Панель управления
+<details>
+  <summary><b>Phone(Userland)</b></summary>
+  
+ 1. <b>Установите UserLAnd по</b> <a href="https://play.google.com/store/apps/details?id=tech.ula">ссылке</a>
+2. <b>Откройте его, выберите Ubuntu —> Minimal —> Terminal</b>
+3. <b>Дождитесь установки дистрибутива, можете заварить чай</b>
+4. <b>После успешной установки перед вами откроется терминал, введите туда:</b>
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt install python3 git python3-pip -y && git clone https://github.com/coddrago/Heroku && cd Haruka && python3 -m venv .venv && source .venv/bin/activate && sudo pip install -r requirements.txt && python3 -m haruka
+```
+5. <b>В конце установки появится ссылка, перейдите по ней и введите данные своей учетной записи для входа.</b>
+> Вуаля! Вы установили Haruka на UserLAnd.
+</details>
 
-1. Создай бота через `@BotFather`.
-2. Выполни `.setbot <token>` и перезапусти Haruka.
-3. Один раз открой бота командой `/start`.
-4. Используй `.menu` или `.dashboard`.
+### Официальные хосты
+<details>
+<summary><b>🌘 HikkaHost</b></summary>
+  
+ 1. Перейдите в [@hikkahost_bot](https://.me/hikkahost_bot)
+2. Нажмите "Установить"
+3. Выберите "🪐 Haruka"
+И продолжайте установку.
 
-В панели доступны состояние движка, команды, feature gates, визуальные темы Aurora/Carbon/Minimal, безопасность и диагностика.
+> **После этого вы получите ссылку, откройте ее и войдите в свою учетную запись.**
 
-## Документация
+</details>
 
-- [Полное руководство пользователя](docs/USER_GUIDE_RU.md)
-- [Руководство разработчика расширений](docs/DEVELOPER_GUIDE.md)
-- [Архитектура ядра](docs/ARCHITECTURE.md)
-- [Развёртывание](docs/DEPLOYMENT.md)
-- [FAQ](docs/FAQ_RU.md)
-- [Сравнение Haruka и Heroku](docs/HARUKA_VS_HEROKU_RU.md)
-- [План развития](ROADMAP.md)
+<details>
+<summary><b>⬇️ Lavhost</b></summary>
 
-## Текущий статус
+Для установки просто перейдите в [@lavhostbot](https://t.me/lavhostbot) и выполните следующие шаги:
 
-Haruka 2.0 — рабочий, но молодой движок. У него уже есть тестируемые контракты и современная архитектура, однако экосистема расширений и совместимость пока меньше, чем у зрелых Hikka-производных проектов.
+1. Введите команду `/buy`, выберите и оплатите счет
+2. Отправьте квитанцию об оплате, если потребуется
+3. После подтверждения оплаты введите `/install` и выберите Haruka
+4. Следуйте инструкциям бота
 
-## Безопасность
+</details>
 
-Сторонний `.py`-файл получает права процесса и доступ к Telegram-сессии. Устанавливай только проверенный код. Никогда не публикуй `.env`, `*.session`, базу или каталог `data`. Подробности — в [SECURITY.md](SECURITY.md).
+<details>
+  <summary><b>🧃Jamhost</b></summary>
+    
+1. Перейдите в [@jamhostbot](https://t.me/jamhostbot) и напишите команду `/pay`
+2. Оплатите подписку на сайте
+3. После оплаты напишите команду <code>/install</code> боту, выберите " <b>🪐 Haruka</b> " в списке юзерботов и выберите нужный сервер
+4. Войдите, используя ссылку, предоставленную ботом
 
-Лицензия: [AGPL-3.0-or-later](LICENSE).
+</details>
+
+## Дополнительные функции
+
+<details>
+  <summary><b>🔒 Автоматическое резервное копирование базы данных</b></summary>
+  <img src="https://user-images.githubusercontent.com/36935426/202905566-964d2904-f3ce-4a14-8f05-0e7840e1b306.png" width="400">
+</details>
+
+<details>
+  <summary><b>👋 Приветственные экраны установки</b></summary>
+  <img src="https://user-images.githubusercontent.com/36935426/202905720-6319993b-697c-4b09-a194-209c110c79fd.png" width="300">
+  <img src="https://user-images.githubusercontent.com/36935426/202905746-2a511129-0208-4581-bb27-7539bd7b53c9.png" width="300">
+</details>
+
+---
+
+## ✨ Ключевые особенности и улучшения
+
+| Особенность | Описание |
+|-------------|------------|
+| 🆕 Последний слой Telegram | Поддержка форумов и новейших функций Telegram |
+| 🔒 Повышенная безопасность | Нативное кэширование сущностей и целевые правила безопасности |
+| 🎨 Улучшения UI/UX | Современный интерфейс и пользовательский опыт |
+| 📦 Основные модули | Улучшенный и новый основной функционал |
+| ⏱️ Быстрое исправление ошибок | Более быстрое решение, чем у FTG/GeekTG |
+| 🔄 Обратная совместимость | Работает с модулями FTG, GeekTG и Hikka |
+| ▶️ Инлайн-элементы | Поддержка форм, галерей и списков |
+
+---
+
+## 📋 Требования
+
+- Python 3.10+
+- Учетные данные API из [Telegram Apps](https://my.telegram.org/apps)
+
+---
+
+## 📚 Документация
+
+| Тип | Ссылка |
+|------|-------|
+| Пользовательская документация | [haruka-ub.xyz](https://haruka-ub.xyz/) |
+| Документация для разработчиков | [dev.haruka-ub.xyz](https://dev.haruka-ub.xyz/) |
+
+---
+
+## 💬 Поддержка
+
+[![Поддержка Telegram](https://img.shields.io/badge/Telegram-Support_Group-2594cb?logo=telegram)](https://t.me/haruka_talks)
+
+---
+
+## ⚠️ Отказ от ответственности за использование
+
+> Этот проект предоставляется «как есть». Разработчик НЕ несет ответственности за:
+> - Блокировки или ограничения аккаунта
+> - Удаления сообщений Telegram
+> - Проблемы безопасности, вызванные мошенническими модулями
+> - Утечки сессий, вызванные вредоносными модулями
+>
+> Рекомендации по безопасности:
+> - Включите .api_fw_protection
+> - Избегайте одновременной установки множества модулей
+> - Ознакомьтесь с [telegram TOS](https://core.telegram.org/api/terms)
+
+---
+
+## 🙏 Благодарности
+
+- [Hikari](https://gitlab.com/hikariatama) за Hikka (основа проекта)
+- [Lonami](https://t.me/lonami) за Telethon (основа Haruka-TL)
