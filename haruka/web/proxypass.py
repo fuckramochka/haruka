@@ -37,6 +37,15 @@ class ProxyPasser:
 
     async def get_url(self, timeout: float = 25) -> typing.Optional[str]:
 
+        if (
+            os.environ.get("HARUKA_LOCAL_WEB") == "1"
+            or os.environ.get("HARUKA_NO_TUNNEL") == "1"
+        ):
+            # Local-only mode requested: never open an external serveo tunnel,
+            # the web interface stays reachable via localhost / HARUKA_IP.
+            logger.info("Local web mode enabled - skipping serveo tunnel")
+            return None
+
         if "DOCKER" in os.environ:
             # We're in a Docker container, so we can't use ssh
             # Also, the concept of Docker is to keep

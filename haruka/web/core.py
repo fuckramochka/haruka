@@ -41,6 +41,17 @@ from . import proxypass, root
 logger = logging.getLogger(__name__)
 
 
+def _local_web() -> bool:
+    """Keep the web interface on localhost only (no external serveo tunnel).
+
+    Enabled with HARUKA_LOCAL_WEB=1 (or the HARUKA_NO_TUNNEL=1 alias).
+    """
+    return (
+        os.environ.get("HARUKA_LOCAL_WEB") == "1"
+        or os.environ.get("HARUKA_NO_TUNNEL") == "1"
+    )
+
+
 class Web(root.Web):
     def __init__(self, **kwargs):
         self.runner = None
@@ -79,7 +90,7 @@ class Web(root.Web):
         if all(option in os.environ for option in {"LAVHOST", "USER", "SERVER"}):
             return f"https://{os.environ['USER']}.{os.environ['SERVER']}.lavhost.ml"
 
-        if proxy_pass:
+        if proxy_pass and not _local_web():
             with contextlib.suppress(Exception):
                 url = await self.proxypasser.get_url(timeout=10)
 
