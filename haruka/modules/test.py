@@ -10,6 +10,7 @@
 # You can redistribute it and/or modify it under the terms of the GNU AGPLv3
 # 🔑 https://www.gnu.org/licenses/agpl-3.0.html
 
+import asyncio
 import getpass
 import inspect
 import logging
@@ -354,9 +355,20 @@ class TestMod(loader.Module):
         )
 
     async def client_ready(self):
-        self._content_channel_id = await utils.wait_for_content_channel(self._db)
-        self.logchat = int(f"-100{self._content_channel_id}")
-        logging.getLogger().handlers[0].install_tg_log(self)
-        logger.debug("Bot logging installed for %s", self.logchat)
-
+        # Commands must not wait for the optional Telegram log channel.
         self._pass_config_to_logger()
+        self._tg_log_setup_task = asyncio.create_task(self._install_tg_logging())
+
+    async def _install_tg_logging(self):
+        """Attach Telegram logging after Quickstart creates its assets channel."""
+        try:
+            self._content_channel_id = await utils.wait_for_content_channel(
+                self._db, delay=30
+            )
+            self.logchat = int(f"-100{self._content_channel_id}")
+            logging.getLogger().handlers[0].install_tg_log(self)
+            logger.debug("Bot logging installed for %s", self.logchat)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Telegram log setup failed; continuing without it")

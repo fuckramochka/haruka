@@ -334,9 +334,7 @@ async def asset_channel(
             peer.id == getattr(folder_peer, "channel_id", None)
             for folder_peer in folder.include_peers
         ):
-            print(len(folder.include_peers))
             folder.include_peers.append(await client.get_input_entity(peer))
-            print(len(folder.include_peers))
 
             await client(
                 UpdateDialogFilterRequest(
@@ -451,13 +449,19 @@ async def asset_forum_topic(
     return new_topic
 
 
-async def wait_for_content_channel(db: "Database", delay: float = 10) -> int:
+async def wait_for_content_channel(db: "Database", delay: float = 30) -> int:
+    """Wait for the optional assets channel without blocking startup or spamming logs."""
     cid = db.get("haruka.forums", "channel_id", None)
+    attempts = 0
 
     while not cid:
-        logger.warning(
-            "Haruka content channel not found in database. Sleeping 10 seconds..."
-        )
+        if attempts == 0:
+            logger.info(
+                "Haruka assets channel is not ready yet; Telegram logging will attach in the background"
+            )
+        elif attempts % 10 == 0:
+            logger.warning("Haruka assets channel is still unavailable; retrying in background")
+        attempts += 1
         await asyncio.sleep(delay)
         cid = db.get("haruka.forums", "channel_id", None)
 

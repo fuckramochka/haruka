@@ -53,9 +53,8 @@ class HarukaInfoMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "",
+                None,
                 lambda: self.strings("_cfg_banner"),
-                validator=loader.validators.RandomLink(),
             ),
             loader.ConfigValue(
                 "ping_emoji",
