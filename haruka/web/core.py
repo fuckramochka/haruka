@@ -42,14 +42,14 @@ logger = logging.getLogger(__name__)
 
 
 def _local_web() -> bool:
-    """Keep the web interface on localhost only (no external serveo tunnel).
+    """Use a loopback-only web interface unless public access is explicit.
 
-    Enabled with HARUKA_LOCAL_WEB=1 (or the HARUKA_NO_TUNNEL=1 alias).
+    Public serveo access is opt-in with HARUKA_PUBLIC_WEB=1. The legacy
+    HARUKA_LOCAL_WEB=1 and HARUKA_NO_TUNNEL=1 flags always keep it local.
     """
-    return (
-        os.environ.get("HARUKA_LOCAL_WEB") == "1"
-        or os.environ.get("HARUKA_NO_TUNNEL") == "1"
-    )
+    if os.environ.get("HARUKA_LOCAL_WEB") == "1" or os.environ.get("HARUKA_NO_TUNNEL") == "1":
+        return True
+    return os.environ.get("HARUKA_PUBLIC_WEB") != "1"
 
 
 class Web(root.Web):
@@ -120,7 +120,8 @@ class Web(root.Web):
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
         self.port = os.environ.get("PORT", port)
-        site = web.TCPSite(self.runner, None, self.port)
+        # Local mode must not expose the setup server on every network interface.
+        site = web.TCPSite(self.runner, "127.0.0.1" if _local_web() else None, self.port)
         self.proxypasser = proxypass.ProxyPasser(port=self.port)
         await site.start()
 

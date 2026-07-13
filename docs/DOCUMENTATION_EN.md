@@ -104,3 +104,23 @@ See `deploy/README.md` for ready-to-use auto-restart setups:
   starts are fast.
 - **git errors** — set the environment variable `HARUKA_NO_GIT=1` to run
   without git.
+
+---
+
+## 🌐 Local web interface (default)
+
+The setup page is **local by default**: Haruka binds it to `127.0.0.1` and
+never contacts serveo.net. The console prints an address such as
+`http://127.0.0.1:36937`; open it in a browser on the same UserLAnd/Linux
+machine.
+
+If you intentionally need a temporary public URL (for example to configure a
+remote server from a phone), explicitly opt in:
+
+```sh
+export HARUKA_PUBLIC_WEB=1
+./start.sh
+```
+
+Do not enable it for a local installation unless you understand that the setup
+page will be reachable through an external tunnel.

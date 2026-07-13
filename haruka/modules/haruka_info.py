@@ -53,7 +53,7 @@ class HarukaInfoMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/haruka_info.png",
+                "",
                 lambda: self.strings("_cfg_banner"),
                 validator=loader.validators.RandomLink(),
             ),

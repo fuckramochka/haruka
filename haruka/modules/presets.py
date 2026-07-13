@@ -127,10 +127,10 @@ class Presets(loader.Module):
         await self._menu()
 
     async def _menu(self):
-        await self.inline.bot.send_photo(
+        # A text menu is reliable even when Telegram cannot reach GitHub CDN.
+        await self.inline.bot.send_message(
             self._client.tg_id,
-            "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/presets_cmd.png",
-            caption=self.strings("welcome"),
+            self.strings("welcome"),
             reply_markup=self.inline.generate_markup(self._markup_gen()),
         )
 

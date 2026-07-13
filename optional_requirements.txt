@@ -1,6 +1,5 @@
-requests
+# Optional enhancements. Core dependencies belong only in requirements.txt.
 moviepy
 python-ffmpeg
 ffmpeg
-bs4
 uvloop

@@ -557,30 +557,31 @@ class UpdaterMod(loader.Module):
             self.set("do_not_create", True)
 
         if not self.config["autoupdate"] and not self.get("autoupdate", False):
-            await self.inline.bot.send_photo(
-                self.tg_id,
-                photo="https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/unit_alpha.png",
-                caption=self.strings("autoupdate"),
-                reply_markup=self.inline.generate_markup(
+            markup = self.inline.generate_markup(
+                [
                     [
-                        [
-                            {
-                                "text": f"✅ Turn on",
-                                "callback": self._set_autoupdate_state,
-                                "args": (True,),
-                                "style": "success",
-                            }
-                        ],
-                        [
-                            {
-                                "text": "🚫 Turn off",
-                                "callback": self._set_autoupdate_state,
-                                "args": (False,),
-                                "style": "danger",
-                            }
-                        ],
-                    ]
-                ),
+                        {
+                            "text": "✅ Turn on",
+                            "callback": self._set_autoupdate_state,
+                            "args": (True,),
+                            "style": "success",
+                        }
+                    ],
+                    [
+                        {
+                            "text": "🚫 Turn off",
+                            "callback": self._set_autoupdate_state,
+                            "args": (False,),
+                            "style": "danger",
+                        }
+                    ],
+                ]
+            )
+            # Keep first boot independent from external image/CDN availability.
+            await self.inline.bot.send_message(
+                self.tg_id,
+                self.strings("autoupdate"),
+                reply_markup=markup,
             )
 
     async def _add_folder(self):

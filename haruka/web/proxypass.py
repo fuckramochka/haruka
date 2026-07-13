@@ -40,9 +40,10 @@ class ProxyPasser:
         if (
             os.environ.get("HARUKA_LOCAL_WEB") == "1"
             or os.environ.get("HARUKA_NO_TUNNEL") == "1"
+            or os.environ.get("HARUKA_PUBLIC_WEB") != "1"
         ):
-            # Local-only mode requested: never open an external serveo tunnel,
-            # the web interface stays reachable via localhost / HARUKA_IP.
+            # Privacy-first default: do not contact serveo. Public tunnelling is
+            # available only when HARUKA_PUBLIC_WEB=1 is set explicitly.
             logger.info("Local web mode enabled - skipping serveo tunnel")
             return None
 

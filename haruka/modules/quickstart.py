@@ -27,19 +27,9 @@ class Quickstart(loader.Module):
     strings = {"name": "Quickstart"}
 
     async def client_ready(self):
-        await self.request_join(
-            "haruka_talks",
-            "Haruka help is only available in this chat. By agreeing to join the chat, you agree to the Haruka federation rules and if you violate them, you will be permanently banned.",
-        )
-
-        self.mark = lambda: [
-            [
-                {
-                    "text": self.strings("btn_support"),
-                    "url": "https://t.me/haruka_talks",
-                }
-            ],
-        ] + utils.chunks(
+        # Never block startup on a project chat that may have been renamed,
+        # deleted or be unavailable in a user's region.
+        self.mark = lambda: utils.chunks(
             [
                 {
                     "text": self.strings.get("language", lang),
@@ -96,7 +86,8 @@ class Quickstart(loader.Module):
                     description="🪐 Content related to Haruka will be here",
                     silent=True,
                     invite_bot=True,
-                    avatar="https://raw.githubusercontent.com/coddrago/assets/main/haruka/haruka.png",
+                    # A remote avatar must not make first boot fail offline.
+                    avatar=None,
                     forum=True,
                     hide_general=True,
                     _folder="haruka",

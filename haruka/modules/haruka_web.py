@@ -59,7 +59,6 @@ class HarukaWebMod(loader.Module):
                         "text": self.strings("web_btn"),
                         "url": await main.haruka.web.get_url(proxy_pass=False),
                     },
-                    photo="https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/web_interface.png",
                 )
                 return
 
@@ -80,7 +79,6 @@ class HarukaWebMod(loader.Module):
                             },
                             {"text": self.strings("btn_no"), "action": "close"},
                         ],
-                        photo="https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/web_interface.png",
                     ):
                         raise Exception
                 except Exception:
@@ -115,18 +113,12 @@ class HarukaWebMod(loader.Module):
                 await form.edit(
                     self.strings("opening_tunnel"),
                     reply_markup={"text": "🕔 Wait...", "data": "empty"},
-                    photo=(
-                        "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/opening_tunnel.png"
-                    ),
                 )
             else:
                 form = await self.inline.form(
                     self.strings("opening_tunnel"),
                     message=message,
                     reply_markup={"text": "🕔 Wait...", "data": "empty"},
-                    photo=(
-                        "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/opening_tunnel.png"
-                    ),
                 )
 
             url = await main.haruka.web.get_url(proxy_pass=True)
@@ -134,7 +126,6 @@ class HarukaWebMod(loader.Module):
             await form.edit(
                 self.strings("tunnel_opened"),
                 reply_markup={"text": self.strings("web_btn"), "url": url},
-                photo="https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/tunnel_opened.png",
             )
 
     @loader.command()
