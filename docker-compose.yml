@@ -1,0 +1,13 @@
+services:
+  haruka:
+    build: .
+    image: ghcr.io/fuxckramochka/haruka:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HARUKA_DATA_DIR: /data/haruka
+    volumes:
+      - ./data:/data/haruka
+    stdin_open: true
+    tty: true

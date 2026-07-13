@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "haruka"
+version = "2.0.0"
+description = "Engine-first runtime and SDK for Telegram userbots"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "fuxckramochka" }]
+keywords = ["telegram", "userbot", "kurigram", "mtproto", "framework", "engine"]
+
+# Core runtime dependencies (pinned for reproducibility, no vendoring).
+dependencies = [
+    "kurigram==2.2.23",
+    "aiosqlite==0.20.0",
+    "aiohttp==3.10.11",
+    "pydantic==2.9.2",
+    "cryptography==43.0.3",
+    "python-dotenv==1.0.1",
+    "psutil==6.1.0",
+    "GitPython==3.1.43",
+    "qrcode[pil]==8.0",
+]
+
+[project.optional-dependencies]
+# Faster MTProto crypto. Falls back to pure-python if not installed.
+fast = ["TgCrypto==1.2.5"]
+# Extra media helpers.
+media = ["Pillow==10.4.0"]
+# Web/QR onboarding.
+web = []
+# Everything.
+full = ["TgCrypto==1.2.5", "Pillow==10.4.0"]
+# Development.
+dev = ["ruff==0.7.3", "pytest==8.3.3", "pytest-asyncio==0.24.0"]
+
+[project.scripts]
+haruka = "haruka.__main__:run"
+
+[project.urls]
+Homepage = "https://github.com/fuxckramochka/haruka"
+Repository = "https://github.com/fuxckramochka/haruka"
+Documentation = "https://github.com/fuxckramochka/haruka/tree/main/docs"
+Issues = "https://github.com/fuxckramochka/haruka/issues"
+Changelog = "https://github.com/fuxckramochka/haruka/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["haruka"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+ignore = ["B008", "RUF001", "RUF002", "RUF003"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
