@@ -525,6 +525,7 @@ class Web:
                     await utils.run_sync(
                         requests.get,
                         f"https://freegeoip.app/json/{ip}",
+                        timeout=5,
                     )
                 ).json()
                 cities += [

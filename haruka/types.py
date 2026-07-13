@@ -1006,7 +1006,9 @@ class Module:
         if not utils.check_url(url):
             _raise(ValueError("Invalid url for library"))
 
-        code = await utils.run_sync(requests.get, url)
+        # Third-party libraries must not hold startup forever on redirect loops
+        # or an unreachable host.
+        code = await utils.run_sync(requests.get, url, timeout=15)
         code.raise_for_status()
         code = code.text
 

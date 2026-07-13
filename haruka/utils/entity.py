@@ -499,6 +499,7 @@ async def set_avatar(
             await run_sync(
                 requests.get,
                 avatar,
+                timeout=15,
             )
         ).content
     elif isinstance(avatar, bytes):

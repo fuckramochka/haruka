@@ -150,6 +150,7 @@ class RemoteStorage:
             r = await utils.run_sync(
                 requests.get,
                 url,
+                timeout=15,
                 auth=(tuple(auth.split(":", 1)) if auth else None),
                 headers={
                     "User-Agent": "Haruka Userbot",

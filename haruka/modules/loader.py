@@ -264,6 +264,7 @@ class LoaderMod(loader.Module):
         res = await utils.run_sync(
             requests.get,
             f"{repo}/full.txt",
+            timeout=15,
             auth=(
                 tuple(self.config["basic_auth"].split(":", 1))
                 if self.config["basic_auth"]
@@ -702,8 +703,25 @@ class LoaderMod(loader.Module):
                     save_fs=save_fs,
                 )
             except ImportError as e:
+                # Never run pip during automatic restore of external modules.
+                # A broken plugin must not stall the whole userbot for minutes.
+                if message is None:
+                    logger.warning(
+                        "Skipping automatic dependency installation for external module (%s)",
+                        e.name,
+                    )
+                    return
+
+                # `moviepy.editor` / `aiogram.utils.exceptions` are import
+                # paths, not installable package names. Fail fast instead of
+                # spending minutes on a guaranteed-invalid pip request.
+                if not e.name or "." in e.name:
+                    raise loader.LoadError(
+                        f"Missing Python import: {e.name or 'unknown'}; install its package manually"
+                    ) from e
+
                 logger.info(
-                    "Module loading failed, attemping dependency installation (%s)",
+                    "Module loading failed, attempting dependency installation (%s)",
                     e.name,
                 )
                 requirements = [
@@ -1271,6 +1289,7 @@ class LoaderMod(loader.Module):
             r = await utils.run_sync(
                 requests.get,
                 f"{args}/full.txt",
+                timeout=15,
                 auth=(
                     tuple(self.config["basic_auth"].split(":", 1))
                     if self.config["basic_auth"]

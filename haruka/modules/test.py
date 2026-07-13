@@ -314,7 +314,8 @@ class TestMod(loader.Module):
                     message,
                     self.strings("suspended").format(time_sleep),
                 )
-                time.sleep(time_sleep)
+                # Suspending one command must not freeze every other command.
+                await asyncio.sleep(time_sleep)
         except ValueError:
             await utils.answer(message, self.strings("suspend_invalid_time"))
 
