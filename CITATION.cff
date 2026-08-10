@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: Haruka Engine
+message: If you use Haruka in research or software, cite this repository.
+type: software
+authors:
+  - name: fuxckramochka
+repository-code: https://github.com/fuxckramochka/haruka
+license: AGPL-3.0-or-later
+version: 2.0.0
