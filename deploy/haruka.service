@@ -1,0 +1,31 @@
+# Haruka Userbot - systemd unit (Linux)
+#
+# Install as a per-user service (recommended, no root needed):
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/haruka.service ~/.config/systemd/user/haruka.service
+#   # edit WorkingDirectory/ExecStart below if your path differs from ~/Haruka
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now haruka.service
+#   loginctl enable-linger "$USER"   # keep running after logout
+#
+# Logs:   journalctl --user -u haruka -f
+# Stop:   systemctl --user stop haruka
+
+[Unit]
+Description=Haruka Userbot
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Haruka
+ExecStart=/usr/bin/env bash %h/Haruka/start.sh
+Restart=always
+RestartSec=5
+Environment=GIT_PYTHON_REFRESH=quiet
+KillMode=mixed
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target

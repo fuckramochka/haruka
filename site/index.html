@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Haruka — Fast Modular Telegram Userbot</title>
+<meta name="description" content="Haruka — a fast, modular Telegram userbot. Full plugin support, harukatl engine, lightning startup, cross-platform installer." />
+<style>
+:root{
+  --bg:#0b0713; --bg2:#140a20; --card:rgba(255,255,255,.045);
+  --card-brd:rgba(255,255,255,.09);
+  --pink:#ff8fc7; --pink2:#ff5fa8; --purple:#a97bff; --blue:#6ad0ff;
+  --txt:#f4eefb; --muted:#b9adcf; --accent:#ffb3d9;
+  --grad:linear-gradient(120deg,#ff8fc7,#a97bff 55%,#6ad0ff);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",sans-serif;
+  background:var(--bg); color:var(--txt); overflow-x:hidden; line-height:1.6;
+}
+a{color:inherit;text-decoration:none}
+.container{max-width:1120px;margin:0 auto;padding:0 22px}
+
+/* animated aurora background */
+.bg-orbs{position:fixed;inset:0;z-index:-2;overflow:hidden;background:
+  radial-gradient(1200px 700px at 15% -10%,#241035,transparent),
+  radial-gradient(900px 600px at 100% 0%,#1b0e2c,transparent),var(--bg);}
+.orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;animation:float 18s ease-in-out infinite}
+.orb.a{width:460px;height:460px;background:#ff5fa8;top:-120px;left:-80px}
+.orb.b{width:520px;height:520px;background:#7b5bff;top:30%;right:-160px;animation-delay:-6s}
+.orb.c{width:420px;height:420px;background:#39b6ff;bottom:-160px;left:20%;animation-delay:-11s}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-30px) scale(1.08)}66%{transform:translate(-30px,25px) scale(.95)}}
+
+/* sakura petals */
+.petals{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.petal{position:absolute;top:-40px;width:14px;height:14px;background:var(--accent);
+  border-radius:150% 0 150% 0;opacity:.5;animation:fall linear infinite}
+@keyframes fall{0%{transform:translateY(-10vh) rotate(0);opacity:0}
+  10%{opacity:.6}90%{opacity:.6}100%{transform:translateY(110vh) rotate(540deg);opacity:0}}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:rgba(11,7,19,.55);border-bottom:1px solid var(--card-brd)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;max-width:1120px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.15rem;letter-spacing:.5px}
+.brand .logo{width:34px;height:34px;border-radius:10px;background:var(--grad);
+  display:grid;place-items:center;font-weight:900;color:#180a24;box-shadow:0 6px 20px rgba(255,95,168,.45)}
+.nav-links{display:flex;gap:22px;align-items:center}
+.nav-links a{color:var(--muted);font-size:.93rem;transition:.2s}
+.nav-links a:hover{color:var(--txt)}
+.lang-toggle{display:flex;border:1px solid var(--card-brd);border-radius:999px;overflow:hidden}
+.lang-toggle button{background:transparent;color:var(--muted);border:0;padding:6px 14px;cursor:pointer;font-weight:700;font-size:.82rem;transition:.2s}
+.lang-toggle button.active{background:var(--grad);color:#180a24}
+@media(max-width:720px){.nav-links a:not(.btn-mini){display:none}}
+
+/* hero */
+header{padding:90px 0 70px;text-align:center}
+.badge{display:inline-flex;gap:8px;align-items:center;padding:7px 16px;border:1px solid var(--card-brd);
+  border-radius:999px;background:var(--card);font-size:.82rem;color:var(--accent);margin-bottom:26px;
+  animation:pop .8s cubic-bezier(.2,.9,.3,1.4) both}
+h1{font-size:clamp(2.6rem,6vw,4.6rem);line-height:1.05;font-weight:900;letter-spacing:-1px}
+h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  background-size:200% auto;animation:shine 5s linear infinite}
+@keyframes shine{to{background-position:200% center}}
+.type{display:block;font-size:clamp(1rem,2.6vw,1.5rem);color:var(--muted);margin-top:18px;min-height:1.6em;font-weight:600}
+.type .cursor{display:inline-block;width:2px;background:var(--pink);margin-left:2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.hero-sub{max-width:640px;margin:22px auto 0;color:var(--muted);font-size:1.08rem}
+.cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:38px}
+.btn{padding:14px 28px;border-radius:14px;font-weight:800;font-size:1rem;cursor:pointer;border:0;transition:.25s;position:relative}
+.btn.primary{background:var(--grad);color:#180a24;box-shadow:0 10px 30px rgba(169,123,255,.35)}
+.btn.primary:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(255,95,168,.5)}
+.btn.ghost{background:var(--card);border:1px solid var(--card-brd);color:var(--txt)}
+.btn.ghost:hover{border-color:var(--pink);color:var(--pink)}
+.btn-mini{padding:8px 16px;border-radius:10px;background:var(--grad);color:#180a24;font-weight:800;font-size:.85rem}
+@keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+
+/* stats */
+.stats{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;margin-top:56px}
+.stat{text-align:center}
+.stat .n{font-size:2.1rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat .l{color:var(--muted);font-size:.86rem;letter-spacing:.4px}
+
+/* sections */
+section{padding:72px 0}
+.sec-head{text-align:center;margin-bottom:48px}
+.sec-head .kicker{color:var(--pink);font-weight:800;letter-spacing:2px;text-transform:uppercase;font-size:.78rem}
+.sec-head h2{font-size:clamp(1.9rem,4vw,2.8rem);font-weight:900;margin-top:8px}
+.sec-head p{color:var(--muted);max-width:560px;margin:12px auto 0}
+
+/* features grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.card{background:var(--card);border:1px solid var(--card-brd);border-radius:18px;padding:26px;transition:.3s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-6px);border-color:rgba(255,143,199,.4);box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.card::before{content:"";position:absolute;inset:0;background:var(--grad);opacity:0;transition:.3s;z-index:-1}
+.card .ico{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,rgba(255,143,199,.22),rgba(169,123,255,.22));
+  display:grid;place-items:center;font-size:1.6rem;margin-bottom:16px}
+.card h3{font-size:1.15rem;margin-bottom:8px}
+.card p{color:var(--muted);font-size:.95rem}
+
+/* install steps */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-bottom:34px}
+.step{background:var(--card);border:1px solid var(--card-brd);border-radius:16px;padding:24px;position:relative}
+.step .num{position:absolute;top:-16px;left:22px;width:34px;height:34px;border-radius:10px;background:var(--grad);
+  color:#180a24;font-weight:900;display:grid;place-items:center;box-shadow:0 6px 18px rgba(255,95,168,.4)}
+.step h4{margin:12px 0 6px;font-size:1.05rem}
+.step p{color:var(--muted);font-size:.92rem}
+.code{background:#0d0819;border:1px solid var(--card-brd);border-radius:14px;padding:18px 20px;position:relative;overflow-x:auto}
+.code pre{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:.9rem;color:#e6dcff;white-space:pre}
+.code .cp{position:absolute;top:12px;right:12px;background:var(--card);border:1px solid var(--card-brd);
+  color:var(--muted);border-radius:8px;padding:5px 12px;font-size:.75rem;cursor:pointer;transition:.2s}
+.code .cp:hover{color:var(--pink);border-color:var(--pink)}
+.tok-cmd{color:#ff9ed0}.tok-arg{color:#9fe6ff}.tok-cmt{color:#7c6f92}
+
+/* api section */
+.api-wrap{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+@media(max-width:820px){.api-wrap{grid-template-columns:1fr}.api-list{order:2}}
+.api-list ol{list-style:none;counter-reset:s}
+.api-list li{counter-increment:s;padding:14px 0 14px 52px;position:relative;border-bottom:1px dashed var(--card-brd)}
+.api-list li:last-child{border:0}
+.api-list li::before{content:counter(s);position:absolute;left:0;top:12px;width:34px;height:34px;
+  border-radius:50%;background:var(--grad);color:#180a24;font-weight:900;display:grid;place-items:center}
+.api-list b{color:var(--accent)}
+.api-card{background:var(--card);border:1px solid var(--card-brd);border-radius:18px;padding:26px}
+.api-card .field{margin-bottom:14px}
+.api-card label{font-size:.78rem;color:var(--muted);letter-spacing:.5px}
+.api-card .fake{background:#0d0819;border:1px solid var(--card-brd);border-radius:10px;padding:11px 14px;margin-top:5px;
+  font-family:monospace;color:#9fe6ff;position:relative;overflow:hidden}
+.api-card .fake::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,143,199,.18),transparent);
+  transform:translateX(-100%);animation:scan 2.6s ease-in-out infinite}
+@keyframes scan{to{transform:translateX(100%)}}
+.mtg-btn{display:inline-flex;gap:8px;align-items:center;margin-top:8px;padding:11px 20px;border-radius:12px;
+  background:var(--grad);color:#180a24;font-weight:800}
+
+/* modules chips */
+.chips{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.chip{background:var(--card);border:1px solid var(--card-brd);border-radius:12px;padding:12px 18px;font-weight:700;
+  display:flex;gap:10px;align-items:center;transition:.25s}
+.chip:hover{transform:translateY(-4px);border-color:var(--pink);color:var(--pink)}
+.chip span{font-size:1.2rem}
+
+/* reveal animation */
+.reveal{opacity:0;transform:translateY(34px);transition:.7s cubic-bezier(.2,.8,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* footer */
+footer{padding:54px 0 40px;border-top:1px solid var(--card-brd);text-align:center;color:var(--muted)}
+footer .brand{justify-content:center;margin-bottom:14px}
+footer .flinks{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin:16px 0}
+footer .flinks a:hover{color:var(--pink)}
+.disclaimer{font-size:.78rem;max-width:600px;margin:18px auto 0;opacity:.7}
+</style>
+</head>
+<body>
+<div class="bg-orbs"><span class="orb a"></span><span class="orb b"></span><span class="orb c"></span></div>
+<div class="petals" id="petals"></div>
+
+<nav>
+  <div class="nav-in">
+    <div class="brand"><span class="logo">花</span> Haruka</div>
+    <div class="nav-links">
+      <a href="#features" data-i="nav_features">Features</a>
+      <a href="#install" data-i="nav_install">Install</a>
+      <a href="#api" data-i="nav_api">API keys</a>
+      <a href="#modules" data-i="nav_modules">Modules</a>
+      <a class="btn-mini" href="https://github.com/coddrago/Heroku" target="_blank">GitHub</a>
+      <div class="lang-toggle">
+        <button data-lang="en" class="active" onclick="setLang('en')">EN</button>
+        <button data-lang="ru" onclick="setLang('ru')">RU</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="container">
+    <div class="badge">🌸 <span data-i="hero_badge">Modern fork · Fully module-compatible</span></div>
+    <h1><span data-i="hero_meet">Meet</span> <span class="grad">Haruka</span></h1>
+    <span class="type"><span id="typed"></span><span class="cursor">&nbsp;</span></span>
+    <p class="hero-sub" data-i="hero_sub">A fast, modular Telegram userbot. Full plugin support, transparent <b>harukatl</b> engine, lightning-fast startup and a one-command installer for every OS.</p>
+    <div class="cta">
+      <a class="btn primary" href="#install" data-i="hero_cta1">🚀 Quick install</a>
+      <a class="btn ghost" href="#features" data-i="hero_cta2">Explore features</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n">6+</div><div class="l" data-i="stat_os">Supported OS</div></div>
+      <div class="stat"><div class="n">100%</div><div class="l" data-i="stat_compat">Plugin compatible</div></div>
+      <div class="stat"><div class="n">1</div><div class="l" data-i="stat_cmd">Command to install</div></div>
+      <div class="stat"><div class="n">24/7</div><div class="l" data-i="stat_auto">Auto-restart ready</div></div>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="container">
+    <div class="sec-head reveal">
+      <div class="kicker" data-i="feat_kicker">Why Haruka</div>
+      <h2 data-i="feat_title">Everything that matters</h2>
+      <p data-i="feat_sub">Built for speed, comfort and full compatibility with the plugins you already love.</p>
+    </div>
+    <div class="grid" id="featGrid"></div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="container">
+    <div class="sec-head reveal">
+      <div class="kicker" data-i="inst_kicker">Get started</div>
+      <h2 data-i="inst_title">Quick install guide</h2>
+      <p data-i="inst_sub">One command sets up everything — dependencies, virtual environment and libraries — automatically on first run.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><div class="num">1</div><h4 data-i="inst_s1t">Install Python 3.10+</h4><p data-i="inst_s1p">Make sure Python 3.10 or newer and git are available on your system.</p></div>
+      <div class="step reveal"><div class="num">2</div><h4 data-i="inst_s2t">Clone the repo</h4><p data-i="inst_s2p">Download Haruka from GitHub into a folder.</p></div>
+      <div class="step reveal"><div class="num">3</div><h4 data-i="inst_s3t">Run the launcher</h4><p data-i="inst_s3p">The first-run script installs everything and starts the bot.</p></div>
+      <div class="step reveal"><div class="num">4</div><h4 data-i="inst_s4t">Enter API keys</h4><p data-i="inst_s4p">Paste your API ID and API HASH, log in — done!</p></div>
+    </div>
+    <div class="reveal" style="margin-bottom:18px"><b data-i="inst_lin">🐧 Linux / macOS / FreeBSD / Termux / UserLAnd</b></div>
+    <div class="code reveal">
+      <button class="cp" onclick="cp(this)" data-i="copy">Copy</button>
+<pre><span class="tok-cmd">git</span> clone https://github.com/coddrago/Heroku Haruka
+<span class="tok-cmd">cd</span> Haruka
+<span class="tok-cmd">chmod</span> +x start.sh
+<span class="tok-cmd">./start.sh</span></pre>
+    </div>
+    <div class="reveal" style="margin:22px 0 18px"><b data-i="inst_win">🪟 Windows</b></div>
+    <div class="code reveal">
+      <button class="cp" onclick="cp(this)" data-i="copy">Copy</button>
+<pre><span class="tok-cmd">git</span> clone https://github.com/coddrago/Heroku Haruka
+<span class="tok-cmd">cd</span> Haruka
+<span class="tok-cmd">start.bat</span>   <span class="tok-cmt"># or: powershell -ExecutionPolicy Bypass -File .\start.ps1</span></pre>
+    </div>
+  </div>
+</section>
+
+<section id="api">
+  <div class="container">
+    <div class="sec-head reveal">
+      <div class="kicker" data-i="api_kicker">Telegram API</div>
+      <h2 data-i="api_title">How to get API ID &amp; API HASH</h2>
+      <p data-i="api_sub">Haruka signs in through Telegram's official API, so you need your own personal keys. It takes about a minute.</p>
+    </div>
+    <div class="api-wrap">
+      <div class="api-list card reveal">
+        <ol>
+          <li data-i="api_1">Open <b>my.telegram.org</b> in your browser.</li>
+          <li data-i="api_2">Log in with your phone number — a code arrives in Telegram.</li>
+          <li data-i="api_3">Click <b>API development tools</b>.</li>
+          <li data-i="api_4">Fill the form: title <b>Haruka</b>, platform <b>Desktop</b>.</li>
+          <li data-i="api_5">Press <b>Create application</b>.</li>
+          <li data-i="api_6">Copy your <b>api_id</b> and <b>api_hash</b> — keep them secret!</li>
+        </ol>
+        <a class="mtg-btn" href="https://my.telegram.org" target="_blank">🔑 <span data-i="api_open">Open my.telegram.org</span></a>
+      </div>
+      <div class="api-card reveal">
+        <div class="field"><label>APP TITLE</label><div class="fake">Haruka</div></div>
+        <div class="field"><label>SHORT NAME</label><div class="fake">haruka</div></div>
+        <div class="field"><label>API ID</label><div class="fake">2040113</div></div>
+        <div class="field"><label>API HASH</label><div class="fake">b18441a1ff607e10a9••••••••</div></div>
+        <p style="color:var(--muted);font-size:.82rem" data-i="api_note">ℹ️ Example values — yours will be unique and private.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="modules">
+  <div class="container">
+    <div class="sec-head reveal">
+      <div class="kicker" data-i="mod_kicker">Batteries included</div>
+      <h2 data-i="mod_title">Built-in modules</h2>
+      <p data-i="mod_sub">Ready out of the box — and install thousands more with a single command.</p>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="brand"><span class="logo">花</span> Haruka</div>
+    <div class="flinks">
+      <a href="#features" data-i="nav_features">Features</a>
+      <a href="#install" data-i="nav_install">Install</a>
+      <a href="#api" data-i="nav_api">API keys</a>
+      <a href="https://github.com/coddrago/Heroku" target="_blank">GitHub</a>
+    </div>
+    <p data-i="foot_made">Made with 🌸 — a fast, modular Telegram userbot.</p>
+    <p class="disclaimer" data-i="foot_disc">Haruka is a fork of the open-source Heroku/Hikka userbot, distributed under the GNU AGPLv3. Not affiliated with Telegram. Use responsibly and in accordance with Telegram's Terms of Service.</p>
+  </div>
+</footer>
+
+<script>
+/* ---------- i18n ---------- */
+const I18N={
+ en:{
+  nav_features:"Features",nav_install:"Install",nav_api:"API keys",nav_modules:"Modules",
+  hero_badge:"Modern fork · Fully module-compatible",hero_meet:"Meet",
+  hero_sub:"A fast, modular Telegram userbot. Full plugin support, transparent <b>harukatl</b> engine, lightning-fast startup and a one-command installer for every OS.",
+  hero_cta1:"🚀 Quick install",hero_cta2:"Explore features",
+  stat_os:"Supported OS",stat_compat:"Plugin compatible",stat_cmd:"Command to install",stat_auto:"Auto-restart ready",
+  feat_kicker:"Why Haruka",feat_title:"Everything that matters",feat_sub:"Built for speed, comfort and full compatibility with the plugins you already love.",
+  inst_kicker:"Get started",inst_title:"Quick install guide",inst_sub:"One command sets up everything — dependencies, virtual environment and libraries — automatically on first run.",
+  inst_s1t:"Install Python 3.10+",inst_s1p:"Make sure Python 3.10 or newer and git are available on your system.",
+  inst_s2t:"Clone the repo",inst_s2p:"Download Haruka from GitHub into a folder.",
+  inst_s3t:"Run the launcher",inst_s3p:"The first-run script installs everything and starts the bot.",
+  inst_s4t:"Enter API keys",inst_s4p:"Paste your API ID and API HASH, log in — done!",
+  inst_lin:"🐧 Linux / macOS / FreeBSD / Termux / UserLAnd",inst_win:"🪟 Windows",copy:"Copy",
+  api_kicker:"Telegram API",api_title:"How to get API ID & API HASH",api_sub:"Haruka signs in through Telegram's official API, so you need your own personal keys. It takes about a minute.",
+  api_1:"Open <b>my.telegram.org</b> in your browser.",api_2:"Log in with your phone number — a code arrives in Telegram.",
+  api_3:"Click <b>API development tools</b>.",api_4:"Fill the form: title <b>Haruka</b>, platform <b>Desktop</b>.",
+  api_5:"Press <b>Create application</b>.",api_6:"Copy your <b>api_id</b> and <b>api_hash</b> — keep them secret!",
+  api_open:"Open my.telegram.org",api_note:"ℹ️ Example values — yours will be unique and private.",
+  mod_kicker:"Batteries included",mod_title:"Built-in modules",mod_sub:"Ready out of the box — and install thousands more with a single command.",
+  foot_made:"Made with 🌸 — a fast, modular Telegram userbot.",
+  foot_disc:"Haruka is a fork of the open-source Heroku/Hikka userbot, distributed under the GNU AGPLv3. Not affiliated with Telegram. Use responsibly and in accordance with Telegram's Terms of Service."
+ },
+ ru:{
+  nav_features:"Возможности",nav_install:"Установка",nav_api:"API-ключи",nav_modules:"Модули",
+  hero_badge:"Современный форк · Полная совместимость с модулями",hero_meet:"Знакомьтесь —",
+  hero_sub:"Быстрый модульный Telegram-юзербот. Полная поддержка плагинов, прозрачный движок <b>harukatl</b>, молниеносный запуск и установщик в одну команду для любой ОС.",
+  hero_cta1:"🚀 Быстрая установка",hero_cta2:"Смотреть возможности",
+  stat_os:"Поддерживаемых ОС",stat_compat:"Совместимость плагинов",stat_cmd:"Команда для установки",stat_auto:"Авто-перезапуск",
+  feat_kicker:"Почему Haruka",feat_title:"Всё самое важное",feat_sub:"Создан для скорости, удобства и полной совместимости с любимыми плагинами.",
+  inst_kicker:"Начало работы",inst_title:"Гайд по быстрой установке",inst_sub:"Одна команда настраивает всё — зависимости, виртуальное окружение и библиотеки — автоматически при первом запуске.",
+  inst_s1t:"Установите Python 3.10+",inst_s1p:"Убедитесь, что в системе есть Python 3.10+ и git.",
+  inst_s2t:"Клонируйте репозиторий",inst_s2p:"Скачайте Haruka с GitHub в папку.",
+  inst_s3t:"Запустите лаунчер",inst_s3p:"Скрипт первого запуска сам всё установит и запустит бота.",
+  inst_s4t:"Введите API-ключи",inst_s4p:"Вставьте API ID и API HASH, войдите — готово!",
+  inst_lin:"🐧 Linux / macOS / FreeBSD / Termux / UserLAnd",inst_win:"🪟 Windows",copy:"Копировать",
+  api_kicker:"Telegram API",api_title:"Как получить API ID и API HASH",api_sub:"Haruka входит через официальный API Telegram, поэтому нужны личные ключи. Это займёт около минуты.",
+  api_1:"Откройте <b>my.telegram.org</b> в браузере.",api_2:"Войдите по номеру телефона — код придёт в Telegram.",
+  api_3:"Нажмите <b>API development tools</b>.",api_4:"Заполните форму: название <b>Haruka</b>, платформа <b>Desktop</b>.",
+  api_5:"Нажмите <b>Create application</b>.",api_6:"Скопируйте <b>api_id</b> и <b>api_hash</b> — храните в секрете!",
+  api_open:"Открыть my.telegram.org",api_note:"ℹ️ Пример — ваши значения будут уникальными и личными.",
+  mod_kicker:"Всё в комплекте",mod_title:"Встроенные модули",mod_sub:"Готовы сразу — и тысячи других устанавливаются одной командой.",
+  foot_made:"Сделано с 🌸 — быстрый модульный Telegram-юзербот.",
+  foot_disc:"Haruka — форк открытого юзербота Heroku/Hikka под лицензией GNU AGPLv3. Не связан с Telegram. Используйте ответственно и в соответствии с правилами Telegram."
+ }
+};
+
+/* ---------- feature + module data ---------- */
+const FEATURES={
+ en:[
+  ["🧩","Full module support","Install plugins with one command. Old Heroku/Hikka modules keep working via a transparent import redirect."],
+  ["⚡","Harukatl engine","The Telegram layer is exposed as <b>harukatl</b> — imports are transparently redirected to a high-performance library."],
+  ["🚀","Lightning startup","Compiled-bytecode cache, uvloop and orjson make warm restarts dramatically faster."],
+  ["🧠","Low memory","Bounded LRU+TTL entity cache and __slots__ on hot objects keep RAM usage lean."],
+  ["📱","Inline & web dashboard","Control everything through inline buttons, forms and a browser-based dashboard."],
+  ["🖥️","Cross-platform installer","One script for Linux, macOS, FreeBSD, Termux, UserLAnd and Windows — via venv."],
+  ["🔄","24/7 auto-restart","Ready-made systemd unit and Termux boot script keep your bot alive."],
+  ["🔒","Security first","Fine-grained command permissions and built-in security tools."]
+ ],
+ ru:[
+  ["🧩","Полная поддержка модулей","Установка плагинов одной командой. Старые модули Heroku/Hikka работают через прозрачное перенаправление импортов."],
+  ["⚡","Движок harukatl","Telegram-слой доступен как <b>harukatl</b> — импорты прозрачно ведут к быстрой библиотеке."],
+  ["🚀","Молниеносный запуск","Кэш байткода, uvloop и orjson делают повторные запуски заметно быстрее."],
+  ["🧠","Экономия памяти","Ограниченный LRU+TTL кэш и __slots__ на горячих объектах держат RAM под контролем."],
+  ["📱","Inline и веб-панель","Управление через inline-кнопки, формы и веб-панель в браузере."],
+  ["🖥️","Кросс-платформенный установщик","Один скрипт для Linux, macOS, FreeBSD, Termux, UserLAnd и Windows — через venv."],
+  ["🔄","Авто-перезапуск 24/7","Готовый systemd-юнит и Termux boot-скрипт держат бота живым."],
+  ["🔒","Безопасность","Гибкие права на команды и встроенные инструменты безопасности."]
+ ]
+};
+const CHIPS=[["🖥️","neofetch"],["📝","notes"],["ℹ️","info"],["🌐","translate"],["⚙️","settings"],["📦","loader"],["🔄","updater"],["🔒","security"],["💻","terminal"],["🎬","presets"],["⭐","quickstart"],["🤖","inline"]];
+
+function esc(s){return s;}
+function render(lang){
+  const g=document.getElementById('featGrid');g.innerHTML='';
+  FEATURES[lang].forEach((f,i)=>{
+    const d=document.createElement('div');d.className='card reveal';d.style.transitionDelay=(i*40)+'ms';
+    d.innerHTML=`<div class="ico">${f[0]}</div><h3>${f[1]}</h3><p>${f[2]}</p>`;g.appendChild(d);
+  });
+  const c=document.getElementById('chips');c.innerHTML='';
+  CHIPS.forEach(ch=>{const e=document.createElement('div');e.className='chip';e.innerHTML=`<span>${ch[0]}</span> .${ch[1]}`;c.appendChild(e);});
+  observe();
+}
+function setLang(lang){
+  document.documentElement.lang=lang;
+  document.querySelectorAll('[data-i]').forEach(el=>{const k=el.getAttribute('data-i');if(I18N[lang][k]!=null)el.innerHTML=I18N[lang][k];});
+  document.querySelectorAll('.lang-toggle button').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  render(lang);
+  localStorage.setItem('haruka_lang',lang);
+  startType(lang);
+}
+
+/* ---------- typing effect ---------- */
+const TYPED={en:["Fast.","Modular.","Yours.","Runs everywhere."],ru:["Быстрый.","Модульный.","Твой.","Работает везде."]};
+let typeTimer=null;
+function startType(lang){
+  clearTimeout(typeTimer);const el=document.getElementById('typed');const words=TYPED[lang];
+  let w=0,c=0,del=false;
+  (function tick(){
+    const word=words[w];
+    el.textContent=del?word.slice(0,c--):word.slice(0,c++);
+    let d=del?55:110;
+    if(!del&&c>word.length){d=1400;del=true;c=word.length;}
+    else if(del&&c<0){del=false;c=0;w=(w+1)%words.length;d=250;}
+    typeTimer=setTimeout(tick,d);
+  })();
+}
+
+/* ---------- scroll reveal ---------- */
+let io=null;
+function observe(){
+  if(io)io.disconnect();
+  io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+  document.querySelectorAll('.reveal:not(.in)').forEach(el=>io.observe(el));
+}
+
+/* ---------- copy code ---------- */
+function cp(btn){
+  const pre=btn.parentElement.querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(()=>{
+    const old=btn.textContent;btn.textContent='✓';setTimeout(()=>btn.textContent=old,1400);
+  });
+}
+
+/* ---------- petals ---------- */
+(function petals(){
+  const wrap=document.getElementById('petals');
+  for(let i=0;i<14;i++){
+    const p=document.createElement('span');p.className='petal';
+    p.style.left=Math.random()*100+'vw';
+    p.style.animationDuration=(7+Math.random()*9)+'s';
+    p.style.animationDelay=(-Math.random()*12)+'s';
+    const s=8+Math.random()*12;p.style.width=p.style.height=s+'px';
+    p.style.opacity=.25+Math.random()*.4;wrap.appendChild(p);
+  }
+})();
+
+/* ---------- init ---------- */
+setLang(localStorage.getItem('haruka_lang')||'en');
+</script>
+</body>
+</html>
