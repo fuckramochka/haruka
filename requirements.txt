@@ -1,27 +1,45 @@
+# ============================================================
+# Haruka 2.0 — complete dependency set (single source of truth).
+# Covers BOTH engines: kurigram (pyrogram) and herokutl (harukatl).
+# All pins are Windows-friendly (prebuilt wheels for Python 3.10-3.13).
+# ============================================================
+
+# --- Telegram engines ---
+kurigram==2.2.23
 heroku-tl-new==2.0.0
+TgCrypto-pyrofork
 pyaes
+rsa==4.9
+
+# --- Inline bot / web platform ---
+aiogram==3.26.0
+aiohttp==3.11.18
+aiohttp_jinja2==1.5
+Jinja2==3.1.4
+
+# --- Storage / config / crypto ---
+aiosqlite==0.20.0
+cryptography==43.0.3
+python-dotenv==1.0.1
+ruamel.yaml==0.17.21
 aiofile==3.8.1
 aiofiles==24.1.0
-aiogram==3.26.0
-pydantic-core>=2.27.2 
-pydantic>=2.10.4
-gitpython==3.1.2
-deep-translator
-meval==2.5
-aiohttp_jinja2==1.5
-aiohttp==3.11.18
-Jinja2==3.0.3
-requests==2.27.1
-certifi==2024.8.30
+orjson
+
+# --- Utilities used across core and modules ---
+psutil==6.1.0
+GitPython==3.1.43
+pydantic>=2.10.4,<2.11
+pydantic-core>=2.27.2
+requests>=2.32.3
+certifi>=2024.8.30
 grapheme==0.6.0
 emoji==2.1.0
-werkzeug==2.2.2
-psutil==6.0.0
-TgCrypto-pyrofork
-rsa==4.9
-ruamel.yaml==0.17.21
+meval==2.5
+deep-translator
+qrcode[pil]==8.0
+Pillow>=10.4.0
+werkzeug>=2.2.2
 bs4==0.0.2
-orjson
-Pillow
 
-# Python 3.10+
+# Requires Python 3.10+

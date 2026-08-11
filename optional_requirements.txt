@@ -1,5 +1,6 @@
 # Optional enhancements. Core dependencies belong only in requirements.txt.
+# Installed best-effort: a failure here never aborts the main install.
 moviepy
+imageio-ffmpeg
 python-ffmpeg
-ffmpeg
 uvloop

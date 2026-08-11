@@ -6,12 +6,10 @@
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 
-$Venv = ".venv"
-$Sentinel = ".haruka_installed"
 $env:GIT_PYTHON_REFRESH = "quiet"
+$VenvPy = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 
 function Info($m) { Write-Host "[haruka] $m" -ForegroundColor Cyan }
-function Warn($m) { Write-Host "[haruka] $m" -ForegroundColor Yellow }
 function Fail($m) { Write-Host "[haruka] $m" -ForegroundColor Red; Read-Host "Press Enter to exit"; exit 1 }
 
 function Get-PythonCmd {
@@ -30,24 +28,26 @@ function Get-PythonCmd {
     return $null
 }
 
-$venvPy = Join-Path $Venv "Scripts\python.exe"
-
-if (-not (Test-Path $Sentinel) -or -not (Test-Path $Venv)) {
+if (-not (Test-Path $VenvPy)) {
     Info "First run detected - setting everything up. This can take a few minutes."
     $py = Get-PythonCmd
     if (-not $py) {
-        Fail "Python 3.10+ not found. Install it from https://www.python.org/downloads/ (check 'Add to PATH') and re-run."
+        Fail "Python 3.10+ not found. Run 'Install Haruka.cmd' - it installs Python automatically."
     }
     Info "Using interpreter: $py"
     $parts = $py.Split(" ")
     $exe = $parts[0]
     $rest = @()
     if ($parts.Length -gt 1) { $rest = $parts[1..($parts.Length - 1)] }
-    & $exe @rest -m venv $Venv
+    & $exe @rest -m venv (Join-Path $PSScriptRoot ".venv")
     if ($LASTEXITCODE -ne 0) { Fail "Failed to create virtual environment." }
-    & $venvPy install.py --force
-    if ($LASTEXITCODE -ne 0) { Fail "Dependency installation failed. See the log above." }
 }
 
+# install.py verifies the dependency fingerprint itself and skips quickly
+# when everything is already installed and up to date.
+Info "Checking dependencies..."
+& $VenvPy install.py
+if ($LASTEXITCODE -ne 0) { Fail "Dependency installation failed. See the log above." }
+
 Info "Starting Haruka..."
-& $venvPy -m haruka @args
+& $VenvPy -m haruka @args

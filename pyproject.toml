@@ -12,28 +12,50 @@ license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "fuxckramochka" }]
 keywords = ["telegram", "userbot", "kurigram", "mtproto", "framework", "engine"]
 
-# Core runtime dependencies (pinned for reproducibility, no vendoring).
+# Core runtime dependencies. Keep in sync with requirements.txt —
+# both engines (kurigram + herokutl) and everything the code imports.
 dependencies = [
     "kurigram==2.2.23",
+    "heroku-tl-new==2.0.0",
+    "TgCrypto-pyrofork",
+    "pyaes",
+    "rsa==4.9",
+    "aiogram==3.26.0",
+    "aiohttp==3.11.18",
+    "aiohttp_jinja2==1.5",
+    "Jinja2==3.1.4",
     "aiosqlite==0.20.0",
-    "aiohttp==3.10.11",
-    "pydantic==2.9.2",
     "cryptography==43.0.3",
     "python-dotenv==1.0.1",
+    "ruamel.yaml==0.17.21",
+    "aiofile==3.8.1",
+    "aiofiles==24.1.0",
+    "orjson",
     "psutil==6.1.0",
     "GitPython==3.1.43",
+    "pydantic>=2.10.4,<2.11",
+    "pydantic-core>=2.27.2",
+    "requests>=2.32.3",
+    "certifi>=2024.8.30",
+    "grapheme==0.6.0",
+    "emoji==2.1.0",
+    "meval==2.5",
+    "deep-translator",
     "qrcode[pil]==8.0",
+    "Pillow>=10.4.0",
+    "werkzeug>=2.2.2",
+    "bs4==0.0.2",
 ]
 
 [project.optional-dependencies]
-# Faster MTProto crypto. Falls back to pure-python if not installed.
-fast = ["TgCrypto==1.2.5"]
+# Faster MTProto crypto (already a core dep; kept for explicit installs).
+fast = ["TgCrypto-pyrofork"]
 # Extra media helpers.
-media = ["Pillow==10.4.0"]
+media = ["Pillow>=10.4.0"]
 # Web/QR onboarding.
 web = []
 # Everything.
-full = ["TgCrypto==1.2.5", "Pillow==10.4.0"]
+full = ["TgCrypto-pyrofork", "Pillow>=10.4.0"]
 # Development.
 dev = ["ruff==0.7.3", "pytest==8.3.3", "pytest-asyncio==0.24.0"]
 

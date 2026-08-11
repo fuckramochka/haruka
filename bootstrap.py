@@ -52,9 +52,62 @@ def compatible(executable: str) -> bool:
     return python_version(executable) >= MINIMUM
 
 
+def _windows_python_paths() -> list[str]:
+    """Well-known per-user / system install locations used by python.org and winget.
+
+    Needed because a freshly winget-installed Python is not yet on this
+    process's PATH."""
+    import glob
+
+    paths: list[str] = []
+    roots = []
+    local = os.environ.get("LOCALAPPDATA")
+    program_files = os.environ.get("ProgramFiles")
+    if local:
+        roots.append(os.path.join(local, "Programs", "Python"))
+    if program_files:
+        roots.append(program_files)
+    for root in roots:
+        for folder in sorted(glob.glob(os.path.join(root, "Python3*")), reverse=True):
+            exe = os.path.join(folder, "python.exe")
+            if os.path.isfile(exe):
+                paths.append(exe)
+    return paths
+
+
+def _refresh_windows_path() -> None:
+    """Re-read PATH from the registry so a just-installed Python becomes visible.
+
+    winget updates the persistent PATH but the current console session keeps
+    the stale copy."""
+    if os.name != "nt":
+        return
+    try:
+        import winreg
+
+        parts: list[str] = []
+        for root, subkey in (
+            (
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+            ),
+            (winreg.HKEY_CURRENT_USER, r"Environment"),
+        ):
+            try:
+                with winreg.OpenKey(root, subkey) as key:
+                    value, _ = winreg.QueryValueEx(key, "Path")
+                    parts.append(os.path.expandvars(value))
+            except OSError:
+                continue
+        if parts:
+            os.environ["PATH"] = os.pathsep.join(parts)
+    except Exception:
+        pass  # best-effort; _windows_python_paths is the fallback
+
+
 def discover_python():
     seen = set()
-    for candidate in (
+    candidates = [
         sys.executable,
         "python3.13",
         "python3.12",
@@ -63,7 +116,10 @@ def discover_python():
         "python3",
         "python",
         "py",
-    ):
+    ]
+    if os.name == "nt":
+        candidates.extend(_windows_python_paths())
+    for candidate in candidates:
         path = candidate if Path(candidate).is_absolute() else shutil.which(candidate)
         if path and path not in seen:
             seen.add(path)
@@ -124,6 +180,7 @@ def ensure_python() -> str:
         return executable
     log("!", "Python 3.10+ was not found. Trying the system package manager.")
     install_python()
+    _refresh_windows_path()
     executable = discover_python()
     if not executable:
         raise RuntimeError("Python was installed but a compatible executable was not found")
@@ -182,7 +239,11 @@ def dependencies_ready(executable: Path) -> bool:
     if INSTALL_MARKER.read_text(encoding="utf-8", errors="ignore").strip() != dependency_fingerprint():
         return False
     probe = (
-        "import haruka,pyrogram,aiohttp,aiosqlite,cryptography,psutil,qrcode;"
+        "import haruka;"
+        "import pyrogram,herokutl,harukatl,aiogram,aiohttp,aiohttp_jinja2,aiosqlite,"
+        "cryptography,psutil,qrcode,jinja2,emoji,grapheme,meval,deep_translator,"
+        "requests,git,dotenv,PIL,orjson,aiofile,aiofiles,pyaes,rsa,werkzeug,bs4;"
+        "from ruamel.yaml import YAML;"
         "from haruka.core.loader import Loader"
     )
     return subprocess.run(
@@ -199,14 +260,29 @@ def install_dependencies(executable: Path) -> None:
         return
     log(">", "Dependency definition changed or environment needs repair.")
     retry([executable, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
-    retry([executable, "-m", "pip", "install", "-e", ".[full]"])
+    retry(
+        [
+            executable,
+            "-m",
+            "pip",
+            "install",
+            "--prefer-binary",
+            "--disable-pip-version-check",
+            "--retries",
+            "5",
+            "--timeout",
+            "60",
+            "-e",
+            ".[full]",
+        ]
+    )
     INSTALL_MARKER.write_text(dependency_fingerprint(), encoding="utf-8")
 
 
 def doctor(executable: Path) -> None:
     checks = (
         "import haruka",
-        "import pyrogram, aiohttp, aiosqlite, cryptography, psutil, qrcode",
+        "import haruka, pyrogram, herokutl, harukatl, aiogram, aiohttp, aiosqlite, cryptography, psutil, qrcode",
         "from haruka.core.loader import Loader",
         "from haruka.web.onboarding import BrowserOnboarding",
     )
@@ -217,6 +293,11 @@ def doctor(executable: Path) -> None:
 
 def launch(executable: Path) -> None:
     log("OK", "Starting Haruka. The browser opens only when account setup is required.")
+    if os.name == "nt":
+        # os.execv on Windows spawns a detached process and kills the parent
+        # immediately, which would close the setup console. Run Haruka as a
+        # foreground child instead and propagate its exit code.
+        raise SystemExit(subprocess.call([str(executable), "-m", "haruka"], cwd=ROOT))
     os.execv(str(executable), [str(executable), "-m", "haruka"])
 
 
