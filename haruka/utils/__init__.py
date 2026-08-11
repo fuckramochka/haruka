@@ -1,4 +1,11 @@
-# Utilites
+# Utilities
+
+import re
+
+
+def slugify(value: str) -> str:
+    """Return a stable lowercase identifier suitable for module names."""
+    return re.sub(r"[^a-z0-9_]+", "_", value.casefold()).strip("_")
 
 from .messages import *
 from .other import *

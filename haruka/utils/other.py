@@ -173,14 +173,11 @@ def format_file_size(size_bytes: int) -> str:
     :param size_bytes: Size in bytes
     :return: Formatted string (e.g., '1.5 MB')
     """
-    if size_bytes == 0:
-        return "0 B"
-    size_names = ["B", "KB", "MB", "GB", "TB"]
-    i = 0
-    while size_bytes >= 1024 and i < len(size_names) - 1:
-        size_bytes /= 1024.0
-        i += 1
-    return ".1f"
+    value = float(max(size_bytes, 0))
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if value < 1024 or unit == "TiB":
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
 
 
 def is_url(string: str) -> bool:
@@ -200,7 +197,19 @@ def is_url(string: str) -> bool:
         r"(?:/?|[/?]\S+)$",
         re.IGNORECASE,
     )
-    return url_pattern.match(string) is not None
+    if url_pattern.match(string) is None:
+        return False
+    from urllib.parse import urlparse
+    import ipaddress
+
+    hostname = urlparse(string).hostname
+    if not hostname or hostname.lower() in {"localhost", "localhost.localdomain"}:
+        return False
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        return True
+    return not (address.is_private or address.is_loopback or address.is_link_local)
 
 
 def get_iso_time() -> str:
