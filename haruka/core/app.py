@@ -76,7 +76,11 @@ class Application:
         from haruka.web.onboarding import ensure_browser_login
 
         api_id, api_hash = await ensure_browser_login(
-            self.settings.session_name, self.settings.data_dir, api_id, api_hash
+            self.settings.session_name,
+            self.settings.data_dir,
+            api_id,
+            api_hash,
+            proxy=self.settings.telegram_proxy,
         )
         await self.db.set_many("core", {"api_id": api_id, "api_hash": api_hash})
 
@@ -85,6 +89,7 @@ class Application:
             api_id=api_id,
             api_hash=api_hash,
             workdir=self.settings.data_dir,
+            proxy=self.settings.telegram_proxy,
         )
         await self.client.start()
 

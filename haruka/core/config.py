@@ -26,6 +26,7 @@ class Settings(BaseModel):
 
     api_id: Optional[int] = Field(default=None)
     api_hash: Optional[str] = Field(default=None)
+    telegram_proxy: Optional[str] = None
     data_dir: Path = Field(default_factory=_base_dir)
     session_name: str = "haruka"
     # AI (any OpenAI-compatible endpoint: OpenAI, OpenRouter, Groq, Ollama...)
@@ -46,6 +47,7 @@ class Settings(BaseModel):
         return cls(
             api_id=_int("API_ID"),
             api_hash=os.environ.get("API_HASH") or None,
+            telegram_proxy=os.environ.get("TELEGRAM_PROXY") or None,
             session_name=os.environ.get("HARUKA_SESSION", "haruka"),
             ai_api_key=os.environ.get("AI_API_KEY") or None,
             ai_base_url=os.environ.get("AI_BASE_URL") or None,

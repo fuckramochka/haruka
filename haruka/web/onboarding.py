@@ -10,6 +10,7 @@ import time
 import webbrowser
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from aiohttp import web
 from pyrogram import Client
@@ -46,11 +47,13 @@ class BrowserOnboarding:
         api_hash: Optional[str] = None,
         host: str = "127.0.0.1",
         port: int = 8088,
+        proxy: Optional[str] = None,
     ):
         self.session_name = session_name
         self.workdir = workdir
         self.api_id = api_id
         self.api_hash = api_hash
+        self.proxy = self._parse_proxy(proxy)
         self.host = host
         self.port = _free_port(host, port)
         self.secret = secrets.token_urlsafe(18)
@@ -64,6 +67,22 @@ class BrowserOnboarding:
         self._qr_task: Optional[asyncio.Task] = None
         self._phone_lock = asyncio.Lock()
         self._last_code_request = 0.0
+
+    @staticmethod
+    def _parse_proxy(value: Optional[str]) -> Optional[dict]:
+        if not value:
+            return None
+        parsed = urlparse(value)
+        if parsed.scheme not in {"socks5", "socks5h", "http"} or not parsed.hostname:
+            raise ValueError("TELEGRAM_PROXY must be socks5://host:port or http://host:port")
+        if not parsed.port:
+            raise ValueError("TELEGRAM_PROXY must include a port")
+        proxy = {"scheme": parsed.scheme, "hostname": parsed.hostname, "port": parsed.port}
+        if parsed.username:
+            proxy["username"] = parsed.username
+        if parsed.password:
+            proxy["password"] = parsed.password
+        return proxy
 
     @property
     def url(self) -> str:
@@ -142,6 +161,7 @@ class BrowserOnboarding:
             api_hash=self.api_hash,
             workdir=str(self.workdir),
             no_updates=True,
+            proxy=self.proxy,
         )
         await self.client.connect()
 
@@ -221,7 +241,8 @@ class BrowserOnboarding:
                 self._last_code_request = now
                 self.error = ""
         except Exception as exc:
-            self.error = f"Telegram rejected the phone request: {type(exc).__name__}"
+            detail = str(exc).strip() or type(exc).__name__
+            self.error = f"Telegram rejected the phone request: {html.escape(detail[:240])}"
             return await self.login(request)
         return self._page(
             "Enter the login code",
@@ -306,6 +327,7 @@ async def ensure_browser_login(
     workdir: Path,
     api_id: Optional[int],
     api_hash: Optional[str],
+    proxy: Optional[str] = None,
 ) -> tuple[int, str]:
     """Return credentials and guarantee that a local session is authorized."""
     session_path = workdir / f"{session_name}.session"
@@ -316,6 +338,7 @@ async def ensure_browser_login(
             api_hash=api_hash,
             workdir=str(workdir),
             no_updates=True,
+            proxy=BrowserOnboarding._parse_proxy(proxy),
         )
         try:
             await probe.connect()
@@ -328,5 +351,5 @@ async def ensure_browser_login(
                 await probe.disconnect()
             except ConnectionError:
                 pass
-    wizard = BrowserOnboarding(session_name, workdir, api_id, api_hash)
+    wizard = BrowserOnboarding(session_name, workdir, api_id, api_hash, proxy=proxy)
     return await wizard.run()

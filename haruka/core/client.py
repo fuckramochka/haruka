@@ -12,6 +12,7 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from pyrogram import Client
 from pyrogram.errors import FloodWait
@@ -28,14 +29,25 @@ class HarukaClient:
         api_id: int,
         api_hash: str,
         workdir: Path,
+        proxy: dict | str | None = None,
     ):
         workdir.mkdir(parents=True, exist_ok=True)
+        if isinstance(proxy, str):
+            parsed = urlparse(proxy)
+            if parsed.scheme not in {"socks5", "socks5h", "http"} or not parsed.hostname or not parsed.port:
+                raise ValueError("TELEGRAM_PROXY must be socks5://host:port or http://host:port")
+            proxy = {"scheme": parsed.scheme, "hostname": parsed.hostname, "port": parsed.port}
+            if parsed.username:
+                proxy["username"] = parsed.username
+            if parsed.password:
+                proxy["password"] = parsed.password
         self.app = Client(
             name=session_name,
             api_id=api_id,
             api_hash=api_hash,
             workdir=str(workdir),
             sleep_threshold=30,  # auto-sleep on short flood waits
+            proxy=proxy,
         )
         self._me = None
 
