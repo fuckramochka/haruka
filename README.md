@@ -32,6 +32,8 @@ Modules written for any of these forks **run unmodified**.
 ## 🔓 Independence
 
 - ✅ **No kill switches**: the bot always starts, even when third-party servers are unreachable
+- ✅ **Setup panel is localhost-only** (`127.0.0.1`); a public tunnel (serveo/localhost.run)
+  is opened only with the explicit `--proxy-pass` flag
 - ✅ **Your own update source**: change `GIT_ORIGIN_URL` in the `.updater` module config
   (or the `HARUKA_REPO_URL` environment variable) — update checks, compare links and
   version polling automatically follow *your* repository

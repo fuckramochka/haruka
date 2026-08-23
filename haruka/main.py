@@ -605,7 +605,7 @@ class Haruka:
             if self.arguments.no_auth:
                 return
             if self.web:
-                await self.web.start(self.arguments.port, proxy_pass=True)
+                await self.web.start(self.arguments.port)
                 await self._web_banner()
                 await self.web.wait_for_api_token_setup()
                 self.api_token = self.web.api_token
@@ -704,8 +704,19 @@ class Haruka:
 
     async def _web_banner(self):
         """Shows web banner"""
-        logging.info("🔎 Web mode ready for configuration")
-        logging.info("🔗 Please visit %s", self.web.url)
+        print()
+        print("=" * 46)
+        print("  🌸 Haruka first-run setup")
+        print(f"  Open in your browser: {self.web.url}")
+        print("  (local panel, nothing leaves your PC)")
+        if getattr(self.arguments, "proxy_pass", False):
+            tunnel = getattr(self.web, "url", None)
+            print(f"  Public tunnel: {tunnel}")
+        else:
+            print("  Tip: pass --proxy-pass to expose a public link")
+        print("=" * 46)
+        print()
+        logging.info("🔎 Web mode ready for configuration at %s", self.web.url)
 
     async def wait_for_web_auth(self, token: str) -> bool:
         """
@@ -922,10 +933,7 @@ class Haruka:
             return True
 
         if not self.web.running.is_set():
-            await self.web.start(
-                self.arguments.port,
-                proxy_pass=True,
-            )
+            await self.web.start(self.arguments.port)
             await self._web_banner()
 
         await self.web.wait_for_clients_setup()

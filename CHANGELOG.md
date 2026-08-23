@@ -1,4 +1,16 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.2 — No More Surprise Tunnels
+
+### 🛠 Fixes
+- **Serveo tunnel removed from first-run setup**: the setup panel is now served on
+  `http://127.0.0.1:<port>` only. Previously the bot silently opened an SSH tunnel
+  to serveo.net / localhost.run and pushed users to third-party URLs
+  (e.g. `console.serveo.net` nudge pages).
+- Public tunnels are now strictly opt-in via `--proxy-pass`; the `ProxyPasser`
+  isn't even created unless requested.
+- Friendlier web-setup banner: clear localhost link, "nothing leaves your PC" note
+  and a hint about `--proxy-pass`.
+
 ## 🌸 Haruka 3.2.1 — Dispatcher Silence Fix
 
 ### 🛠 Fixes

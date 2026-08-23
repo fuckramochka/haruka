@@ -111,7 +111,13 @@ class Web(root.Web):
         await self.runner.setup()
         self.port = os.environ.get("PORT", port)
         site = web.TCPSite(self.runner, None, self.port)
-        self.proxypasser = proxypass.ProxyPasser(port=self.port)
+
+        # SSH tunnels (serveo/localhost.run) are strictly opt-in via
+        # --proxy-pass. By default the panel is served on localhost only.
+        self.proxypasser = (
+            proxypass.ProxyPasser(port=self.port) if proxy_pass else None
+        )
+
         await site.start()
 
         await self.get_url(proxy_pass)
