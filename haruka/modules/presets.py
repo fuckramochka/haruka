@@ -122,6 +122,10 @@ class Presets(loader.Module):
         if self.get("sent"):
             return
 
+        if getattr(self.inline, "bot", None) is None:
+            logger.warning("Inline bot not ready - skipping presets welcome menu")
+            return
+
         self.set("sent", True)
         await self._menu()
 

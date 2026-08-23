@@ -1,4 +1,18 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.5 — First-Boot Resilience
+
+### 🛠 Fixed (after successful login)
+- **Core modules no longer unload when the inline bot isn't ready yet**
+  (`'NoneType' object has no attribute 'send_photo'`): `backup`, `presets`,
+  `updater`, `quickstart` now degrade gracefully and stay loaded; inline
+  features activate once the bot is created on a later boot.
+- **Forced channel join removed**: quickstart no longer requires joining
+  `haruka_talks` (which doesn't even exist) — independence cleanup.
+- **`.help` crash fixed**: `invert_media` kwarg (a Heroku-TL extension) is
+  dropped automatically when the installed stock Telethon doesn't support it.
+- **Endless "content channel not found" spam bounded** (30 attempts, then a
+  clear error); backup module reads the channel id non-blockingly at boot.
+
 ## 🌸 Haruka 3.2.4 — Critical Login Fix
 
 ### 🛠 Fixed: "code doesn't arrive / QR broken" — root cause

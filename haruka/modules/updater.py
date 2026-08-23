@@ -581,6 +581,13 @@ class UpdaterMod(loader.Module):
             self.set("do_not_create", True)
 
         if not self.config["autoupdate"] and not self.get("autoupdate", False):
+            if getattr(self.inline, "bot", None) is None:
+                logger.warning(
+                    "Inline bot not ready - skipping autoupdate prompt."
+                    " Use .autoupdate to toggle it manually"
+                )
+                return
+
             await self.inline.bot.send_photo(
                 self.tg_id,
                 photo="https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/unit_alpha.png",

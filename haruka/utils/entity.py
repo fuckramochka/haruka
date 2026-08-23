@@ -450,12 +450,24 @@ async def asset_forum_topic(
     return new_topic
 
 
-async def wait_for_content_channel(db: "Database", delay: float = 10) -> int:
+async def wait_for_content_channel(
+    db: "Database", delay: float = 10, max_attempts: int = 30
+) -> int:
     cid = db.get("haruka.forums", "channel_id", None)
 
+    attempts = 0
     while not cid:
+        attempts += 1
+        if attempts > max_attempts:
+            raise RuntimeError(
+                "Content channel is not available. It is created automatically"
+                " after the inline bot is set up - restart the bot or run"
+                " the setup again."
+            )
+
         logger.warning(
-            "Haruka content channel not found in database. Sleeping 10 seconds..."
+            "Haruka content channel not found in database. Sleeping %s seconds...",
+            delay,
         )
         await asyncio.sleep(delay)
         cid = db.get("haruka.forums", "channel_id", None)

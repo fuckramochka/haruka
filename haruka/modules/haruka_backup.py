@@ -38,6 +38,10 @@ class HarukaBackupMod(loader.Module):
     strings = {"name": "HarukaBackup"}
 
     async def client_ready(self):
+        if getattr(self.inline, "bot", None) is None:
+            logger.warning("Inline bot not ready - skipping backup welcome prompt")
+            return
+
         if not self.get("period"):
             await self.inline.bot.send_photo(
                 self.tg_id,
@@ -67,7 +71,10 @@ class HarukaBackupMod(loader.Module):
                 ),
             )
 
-        self._content_channel_id = await utils.wait_for_content_channel(self._db)
+        # Non-blocking: the content channel may not exist yet (it is created
+        # by quickstart once the inline bot is ready). Backup paths re-check
+        # lazily and wait only when actually needed.
+        self._content_channel_id = self._db.get("haruka.forums", "channel_id", None)
 
     async def _set_backup_period(self, call: BotInlineCall, value: int):
         if not value:

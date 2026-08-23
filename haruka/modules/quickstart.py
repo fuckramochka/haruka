@@ -26,10 +26,15 @@ class Quickstart(loader.Module):
     strings = {"name": "Quickstart"}
 
     async def client_ready(self):
-        await self.request_join(
-            "haruka_talks",
-            "Haruka help is only available in this chat. By agreeing to join the chat, you agree to the Haruka federation rules and if you violate them, you will be permanently banned.",
-        )
+        # Independence: the original fork forced users to join "haruka_talks"
+        # here via request_join(). That requirement is removed entirely.
+        # The welcome/language form is purely cosmetic - skip it when the
+        # inline bot is not ready instead of crashing the module.
+        if getattr(self.inline, "bot", None) is None:
+            logger.warning(
+                "Inline bot not ready - skipping quickstart welcome screen"
+            )
+            return
 
         self.mark = lambda: [
             [

@@ -6,6 +6,7 @@
 import contextlib
 import io
 import json
+import inspect
 import logging
 import re
 import typing
@@ -326,6 +327,29 @@ async def answer(
         return message
 
     kwargs.setdefault("link_preview", False)
+
+    # Fork-only parameters (e.g. `invert_media` from Heroku-TL) are not
+    # accepted by stock Telethon - drop them instead of crashing with a
+    # TypeError deep inside Message.edit / respond.
+    if "invert_media" in kwargs:
+        client = getattr(message, "client", None)
+        supported = True
+        for method in ("edit_message", "send_message"):
+            fn = getattr(client, method, None) if client else None
+            if fn is None:
+                continue
+
+            try:
+                supported = "invert_media" in inspect.signature(fn).parameters
+            except (TypeError, ValueError):
+                supported = True
+
+            if not supported:
+                break
+
+        if not supported:
+            logger.debug("Dropping unsupported kwarg invert_media")
+            kwargs.pop("invert_media")
 
     edit = message.out and not message.via_bot_id and not message.fwd_from
     match True:
