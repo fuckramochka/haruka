@@ -151,7 +151,8 @@ class InlineManager(
 
         try:
             m = await self._client.send_message(self.bot_username, "/start haruka init")
-        except (InputUserDeactivatedError, ValueError):
+        except InputUserDeactivatedError:
+            # Bot genuinely deleted - forget its token and start over once
             self._db.set("haruka.inline", "bot_token", None)
             self._token = False
 
@@ -169,6 +170,15 @@ class InlineManager(
             except Exception:
                 logger.critical("Can't unblock users bot", exc_info=True)
                 return False
+        except ValueError:
+            # Entity resolution can fail transiently right after bot creation.
+            # The stored token is fine - DO NOT wipe it, just retry later.
+            logger.warning(
+                "Could not resolve inline bot entity yet - keeping token,"
+                " inline features will activate after next restart"
+            )
+            self.init_complete = False
+            return False
         except Exception:
             self.init_complete = False
             logger.critical("Initialization of inline manager failed!", exc_info=True)
@@ -229,17 +239,29 @@ class InlineManager(
         )
 
         old = self.bot.get_updates
-        revoke = self.dp_revoke_token
+        conflicts = 0
 
         async def new(*args, **kwargs):
-            nonlocal revoke, old
+            nonlocal conflicts
             try:
-                return await old(*args, **kwargs)
+                result = await old(*args, **kwargs)
+                conflicts = 0
+                return result
             except TelegramConflictError:
-                await revoke()
-            except TelegramUnauthorizedError:
-                logger.critical("Got Unauthorized")
-                await self._stop()
+                # 409 Conflict: someone else is polling the same bot - most
+                # likely a leftover duplicate Haruka instance. Revoking the
+                # token here would create a brand-new bot on every restart,
+                # so instead just warn and back off.
+                conflicts += 1
+                logger.warning(
+                    "TelegramConflictError while polling inline bot (%s)."
+                    " Another instance is probably running - close duplicate"
+                    " Haruka processes! (consecutive: %s)",
+                    self.bot_username,
+                    conflicts,
+                )
+                await asyncio.sleep(3)
+                return []
 
         self.bot.get_updates = new
 

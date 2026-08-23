@@ -1016,6 +1016,7 @@ class Utils(InlineUnit):
         token = None if revoke_token else self._token
 
         if token:
+            logger.debug("Validating stored inline bot token via getMe")
             try:
                 async with aiohttp_module.ClientSession() as session:
                     async with session.get(

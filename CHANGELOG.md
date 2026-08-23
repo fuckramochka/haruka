@@ -1,4 +1,17 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.8 — Stop Creating Bots Every Boot
+
+### 🛠 Root cause of "new bot on every restart"
+- Any `TelegramConflictError` (409, another process polling the same bot —
+  typically a leftover duplicate Haruka instance) **immediately revoked the
+  token and created a brand-new bot**. Now: warning + 3 s backoff, token is
+  preserved.
+- A transient `ValueError` while resolving the bot entity also wiped the
+  stored token; now it keeps the token and just defers inline activation.
+
+Result: one bot for life. Duplicate-instance conflicts are reported in the log
+with clear guidance instead of silently burning bots.
+
 ## 🌸 Haruka 3.2.7 — Legacy BotFather Fallback
 
 ### ✨ New: inline bot creation no longer depends on BotFather's WebApp
