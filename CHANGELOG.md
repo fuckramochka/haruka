@@ -1,4 +1,19 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.7 — Legacy BotFather Fallback
+
+### ✨ New: inline bot creation no longer depends on BotFather's WebApp
+- The WebApp-driven bot creation broke ("WebApp is not available now" on every
+  boot), leaving the userbot without any inline features.
+- Added a **classic text-flow fallback** via @BotFather commands (`/newbot`):
+  name → username (auto-retry on "taken") → token extraction. Token validation
+  uses `getMe` directly.
+- Covers token assert / create / revoke actions; WebApp is still preferred when
+  it works.
+
+### 🛠 Fixed
+- `haruka_info` failed to load entirely: empty-string default for `banner_url`
+  was rejected by the link validator. Default is now `None` (like `.help`).
+
 ## 🌸 Haruka 3.2.6 — Dead Banner Fix
 
 ### 🛠 Fixed

@@ -882,6 +882,21 @@ class Utils(InlineUnit):
                 continue
             break
         else:
+            logger.warning(
+                "BotFather WebApp unavailable - switching to legacy text flow"
+            )
+            if action == 2:
+                return await self._legacy_create_bot()
+            if action == 1:
+                return await self._legacy_assert_token(
+                    create_new_if_needed=create_new_if_needed,
+                    revoke_token=revoke_token,
+                )
+            if action == 3:
+                # Cannot revoke via text flow reliably - just start fresh
+                self._token = False
+                self._db.set("haruka.inline", "bot_token", None)
+                return await self._legacy_create_bot()
             logger.error("WebApp is not available now")
             return False
 
@@ -922,3 +937,103 @@ class Utils(InlineUnit):
                     )
         finally:
             await session.close()
+
+    async def _legacy_create_bot(self) -> bool:
+        """
+        Create a new inline bot through classic @BotFather text commands.
+
+        This is the reliable fallback for the BotFather WebApp flow, which
+        breaks whenever Telegram changes their internal webapp.
+        """
+        import random
+        import string as string_mod
+
+        def _suffix() -> str:
+            return "".join(
+                random.choices(string_mod.ascii_lowercase + string_mod.digits, k=8)
+            )
+
+        token_pattern = re.compile(r"\b(\d{7,12}:[A-Za-z0-9_-]{30,})\b")
+
+        try:
+            async with self._client.conversation("@botfather", timeout=60) as conv:
+                await conv.send_message("/newbot")
+
+                resp = await conv.get_response(timeout=30)
+                if "name" not in (resp.message or "").lower():
+                    logger.error(
+                        "Legacy BotFather flow: unexpected reply to /newbot: %s",
+                        (resp.message or "")[:120],
+                    )
+                    return False
+
+                name = f"Haruka {_suffix()}"
+                await conv.send_message(name)
+
+                username = f"haruka_{_suffix()}_bot"
+                await conv.send_message(username)
+
+                for _ in range(6):
+                    resp = await conv.get_response(timeout=30)
+                    text = resp.message or ""
+
+                    if match := token_pattern.search(text):
+                        self._token = match.group(1)
+                        self._db.set("haruka.inline", "bot_token", self._token)
+                        logger.info(
+                            "Created inline bot via legacy BotFather flow"
+                        )
+                        return True
+
+                    lowered = text.lower()
+                    if "taken" in lowered or "invalid" in lowered:
+                        username = f"haruka_{_suffix()}_bot"
+                        await conv.send_message(username)
+                        continue
+
+                    if "username" in lowered:
+                        await conv.send_message(username)
+                        continue
+
+                logger.error("Legacy BotFather flow did not produce a token")
+                return False
+
+        except asyncio.TimeoutError:
+            logger.error("Legacy BotFather flow timed out")
+            return False
+        except Exception:
+            logger.exception("Legacy BotFather flow failed")
+            return False
+
+    async def _legacy_assert_token(
+        self,
+        create_new_if_needed: bool = True,
+        revoke_token: bool = False,
+    ) -> bool:
+        """Validate stored bot token via getMe; create a new bot if needed"""
+        import aiohttp as aiohttp_module
+
+        token = None if revoke_token else self._token
+
+        if token:
+            try:
+                async with aiohttp_module.ClientSession() as session:
+                    async with session.get(
+                        f"https://api.telegram.org/bot{token}/getMe",
+                        timeout=aiohttp_module.ClientTimeout(total=15),
+                    ) as resp:
+                        data = await resp.json(content_type=None)
+                        if data.get("ok"):
+                            return True
+
+                        logger.warning(
+                            "Stored inline bot token is invalid (getMe: %s)",
+                            data.get("description"),
+                        )
+            except Exception:
+                logger.exception("Token check failed")
+
+        if not create_new_if_needed:
+            return False
+
+        return await self._legacy_create_bot()
