@@ -24,7 +24,7 @@ import telethon
 from typing import Optional
 from pathlib import Path
 from io import BytesIO
-from telethon.errors import WebpageMediaEmptyError
+from telethon.errors import WebpageCurlFailedError, WebpageMediaEmptyError
 from telethon.types import InputMediaWebPage
 from telethon.tl.types import Message
 from telethon.utils import get_display_name
@@ -55,7 +55,7 @@ class HarukaInfoMod(loader.Module):
             ),
             loader.ConfigValue(
                 "banner_url",
-                "https://raw.githubusercontent.com/coddrago/assets/refs/heads/main/haruka/haruka_info.png",
+                "",
                 lambda: self.strings("_cfg_banner"),
                 validator=loader.validators.RandomLink(),
             ),
@@ -222,7 +222,7 @@ class HarukaInfoMod(loader.Module):
                         reply_to=getattr(message, "reply_to_msg_id", None),
                         invert_media=self.config["invert_media"],
                     )
-        except WebpageMediaEmptyError:
+        except (WebpageMediaEmptyError, WebpageCurlFailedError):
             await utils.answer(
                 message,
                 self.strings["no_banner"].format(

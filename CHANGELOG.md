@@ -1,4 +1,14 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.6 — Dead Banner Fix
+
+### 🛠 Fixed
+- **`.info` crash with `WebpageCurlFailedError`**: the default banner URL pointed
+  to a third-party assets repo that Telegram's servers could not fetch. The
+  default is now empty (clean text-only info) and both webpage-fetch errors are
+  handled gracefully.
+- `utils.answer` now retries without the webpage preview whenever Telegram fails
+  to fetch it — no command can die because of a dead banner link anymore.
+
 ## 🌸 Haruka 3.2.5 — First-Boot Resilience
 
 ### 🛠 Fixed (after successful login)

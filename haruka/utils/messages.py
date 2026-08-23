@@ -13,6 +13,7 @@ import typing
 
 import grapheme
 import telethon
+from telethon.errors import WebpageCurlFailedError, WebpageMediaEmptyError
 from telethon.tl.types import (
     Channel,
     Chat,
@@ -408,11 +409,32 @@ async def answer(
 
                 return result
 
-        result = await (message.edit if edit else message.respond)(
-            text,
-            parse_mode=lambda t: (t, entities),
-            **kwargs,
-        )
+        target = message.edit if edit else message.respond
+        try:
+            result = await target(
+                text,
+                parse_mode=lambda t: (t, entities),
+                **kwargs,
+            )
+        except (WebpageCurlFailedError, WebpageMediaEmptyError) as e:
+            # Telegram's servers failed to fetch a webpage referenced in the
+            # message (dead/blocked banner URL). Deliver the text without it.
+            logger.debug("Webpage preview failed (%s), retrying without it", e)
+            kwargs.pop("file", None)
+            kwargs["link_preview"] = False
+            result = await target(
+                text,
+                parse_mode=lambda t: (t, entities),
+                **kwargs,
+            )
+        except TypeError:
+            # Fork-only kwargs may slip through custom call paths
+            kwargs.pop("invert_media", None)
+            result = await target(
+                text,
+                parse_mode=lambda t: (t, entities),
+                **kwargs,
+            )
     elif isinstance(response, Message):
         if message.media is None and (
             response.media is None
