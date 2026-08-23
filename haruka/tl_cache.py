@@ -17,8 +17,14 @@ import typing
 
 from telethon import TelegramClient
 from telethon import __name__ as __base_name__
-from telethon import helpers
+from telethon import helpers, utils as telethon_utils
 from telethon._updates import ChannelState, Entity, EntityType, SessionState
+from telethon.client.telegrambaseclient import (
+    DEFAULT_DC_ID,
+    DEFAULT_IPV4_IP,
+    DEFAULT_IPV6_IP,
+    DEFAULT_PORT,
+)
 from telethon.errors.rpcerrorlist import TopicDeletedError
 from telethon.hints import EntityLike
 from telethon.network import MTProtoSender
@@ -125,6 +131,24 @@ class CustomTelegramClient(TelegramClient):
                     "The asyncio event loop must not change after connection (see the FAQ"
                     " for details)"
                 )
+
+        # Fresh sessions (e.g. MemorySession during web login / QR) have no
+        # server address — fall back to the production DC defaults, exactly
+        # like stock TelegramClient.connect() does. Without this, building
+        # the connection raises "host and port was not specified".
+        # ':' in session.server_address is True if it's an IPv6 address
+        if (
+            not self.session.server_address
+            or (":" in self.session.server_address) != self._use_ipv6
+        ):
+            await telethon_utils.maybe_async(
+                self.session.set_dc(
+                    DEFAULT_DC_ID,
+                    DEFAULT_IPV6_IP if self._use_ipv6 else DEFAULT_IPV4_IP,
+                    DEFAULT_PORT,
+                )
+            )
+            await telethon_utils.maybe_async(self.session.save())
 
         connection = self._connection(
             self.session.server_address,

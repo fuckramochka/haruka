@@ -1,4 +1,15 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.4 — Critical Login Fix
+
+### 🛠 Fixed: "code doesn't arrive / QR broken" — root cause
+- `CustomTelegramClient.connect()` override **lost the default-DC fallback**
+  present in stock Telethon: fresh sessions (`MemorySession` during web login)
+  have no server address, so every connection attempt crashed with
+  `ValueError: host and port was not specified` — before Telegram was ever
+  contacted. This silently killed both the phone-code and QR flows.
+- Restored the fallback (production DC `149.154.167.51:443`, IPv4/IPv6 aware),
+  verified offline: fresh session now resolves to dc2 defaults.
+
 ## 🌸 Haruka 3.2.3 — Login Diagnostics
 
 ### 🛠 Fixes (web login: "code doesn't arrive / QR broken")
