@@ -21,6 +21,8 @@ if not defined PY (
     goto :fail
 )
 
+echo [Haruka] Stopping leftover Haruka instances (if any)...
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -match 'haruka' } | ForEach-Object { Write-Host ('[Haruka] Killed leftover PID ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force }"
 echo [Haruka] Interpreter:
 %PY% --version
 
@@ -76,4 +78,5 @@ exit /b 1
 :end
 echo Press any key to close this window...
 pause >nul
+
 

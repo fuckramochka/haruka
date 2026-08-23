@@ -1,4 +1,17 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.9 — MITM Proxy Tolerance
+
+### 🛠 Fixed: TLS-intercepting proxies (VPN/AdGuard/corporate) broke everything
+Root cause of the endless "WebApp unavailable" + "new bot every boot" loop:
+a local proxy with a **self-signed certificate** failed every verified HTTPS
+call to `api.telegram.org`.
+
+- Inline bot API client: auto-falls back to unverified HTTPS when a self-signed
+  certificate is detected (logged clearly).
+- Legacy token validation (`getMe`): same automatic retry without verification.
+- `install.bat`: now kills leftover Haruka python processes on start —
+  no more session locks and duplicate-poller 409 conflicts.
+
 ## 🌸 Haruka 3.2.8 — Stop Creating Bots Every Boot
 
 ### 🛠 Root cause of "new bot on every restart"

@@ -1018,19 +1018,44 @@ class Utils(InlineUnit):
         if token:
             logger.debug("Validating stored inline bot token via getMe")
             try:
-                async with aiohttp_module.ClientSession() as session:
-                    async with session.get(
-                        f"https://api.telegram.org/bot{token}/getMe",
-                        timeout=aiohttp_module.ClientTimeout(total=15),
-                    ) as resp:
-                        data = await resp.json(content_type=None)
-                        if data.get("ok"):
-                            return True
+                import ssl as ssl_module
 
+                async with aiohttp_module.ClientSession() as session:
+                    try:
+                        async with session.get(
+                            f"https://api.telegram.org/bot{token}/getMe",
+                            timeout=aiohttp_module.ClientTimeout(total=15),
+                        ) as resp:
+                            data = await resp.json(content_type=None)
+                    except (
+                        aiohttp_module.ClientConnectorCertificateError
+                    ) as cert_error:
+                        # Local MITM proxy with a self-signed certificate -
+                        # retry without verification for this diagnostic call
                         logger.warning(
-                            "Stored inline bot token is invalid (getMe: %s)",
-                            data.get("description"),
+                            "TLS interception detected (%s) -"
+                            " retrying getMe unverified",
+                            type(cert_error).__name__,
                         )
+                        connector = aiohttp_module.TCPConnector(
+                            ssl=ssl_module.CERT_NONE
+                        )
+                        async with aiohttp_module.ClientSession(
+                            connector=connector
+                        ) as insecure_session:
+                            async with insecure_session.get(
+                                f"https://api.telegram.org/bot{token}/getMe",
+                                timeout=aiohttp_module.ClientTimeout(total=15),
+                            ) as resp:
+                                data = await resp.json(content_type=None)
+
+                    if data.get("ok"):
+                        return True
+
+                    logger.warning(
+                        "Stored inline bot token is invalid (getMe: %s)",
+                        data.get("description"),
+                    )
             except Exception:
                 logger.exception("Token check failed")
 

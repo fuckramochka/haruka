@@ -110,6 +110,53 @@ class InlineManager(
 
             await asyncio.sleep(5)
 
+    @staticmethod
+    async def _build_bot(token: str):
+        """
+        Create the aiogram Bot, falling back to certificate-verification-free
+        HTTPS when a local MITM proxy (self-signed cert) breaks the default
+        verified connection to api.telegram.org.
+        """
+        import ssl
+
+        from aiogram.client.session.aiohttp import AiohttpSession
+        from aiohttp import ClientConnectorCertificateError
+
+        bot = Bot(
+            token=token,
+            session=AiohttpSession(),
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        )
+
+        try:
+            await bot.get_me()
+            return bot
+        except TelegramUnauthorizedError:
+            raise
+        except ClientConnectorCertificateError as e:
+            if "self-signed" not in str(e) and "CERTIFICATE_VERIFY_FAILED" not in str(
+                e
+            ):
+                raise
+
+        logger.warning(
+            "TLS interception detected (self-signed certificate)."
+            " Using unverified HTTPS for the inline bot API calls"
+        )
+        insecure_ctx = ssl.create_default_context()
+        insecure_ctx.check_hostname = False
+        insecure_ctx.verify_mode = ssl.CERT_NONE
+
+        session = AiohttpSession()
+        # AiohttpSession builds its connector from this dict on first request
+        session._connector_init["ssl"] = insecure_ctx
+
+        return Bot(
+            token=token,
+            session=session,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        )
+
     async def register_manager(
         self,
         after_break: bool = False,
@@ -135,9 +182,7 @@ class InlineManager(
 
         self.init_complete = True
 
-        self.bot = Bot(
-            token=self._token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-        )
+        self.bot = await self._build_bot(self._token)
         self._bot = self.bot
         self._dp = Dispatcher()
 
