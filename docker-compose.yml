@@ -1,0 +1,26 @@
+services:
+  worker:
+    container_name: haruka_ub
+    build:
+      context: .
+    volumes:
+      - worker:/data
+    stop_signal: SIGINT
+    restart: unless-stopped
+    ports:
+      - "${EXTERNAL_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  worker:

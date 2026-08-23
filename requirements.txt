@@ -1,0 +1,27 @@
+# Haruka Userbot requirements
+# Python 3.10+
+
+# Telegram MTProto client (fresh API layer)
+telethon>=1.44.0,<2.0.0
+cryptg
+
+# Inline mode & web
+aiogram==3.26.0
+aiohttp==3.11.18
+aiohttp_jinja2==1.5
+Jinja2==3.0.3
+
+# Core utilities
+pydantic-core>=2.27.2
+pydantic>=2.10.4
+gitpython==3.1.2
+deep-translator
+meval==2.5
+requests==2.27.1
+certifi
+grapheme==0.6.0
+emoji==2.1.0
+psutil==6.0.0
+ruamel.yaml==0.17.21
+orjson
+Pillow
