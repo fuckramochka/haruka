@@ -57,8 +57,15 @@ function login_qr() {
             method: "POST",
             credentials: "include"
         })
-            .then((b) => b.text())
+            .then((b) => b.ok ?
+                b.text() :
+                b.text().then((t) => {
+                    throw new Error(t || "Server error (" + b.status + ")");
+                })
+            )
             .then((c) => {
+                if (!c || 0 !== c.indexOf("tg://"))
+                    throw new Error("Unexpected server response");
                 const d = new QRCodeStyling({
                     width: window.innerHeight / 3,
                     height: window.innerHeight / 3,
@@ -90,7 +97,10 @@ function login_qr() {
                             method: "POST",
                             credentials: "include"
                         })
-                            .then((b) => b.text())
+                            .then((b) => {
+                                if (!b.ok) throw new Error("HTTP " + b.status);
+                                return b.text();
+                            })
                             .then((b) =>
                                 "SUCCESS" == b || "2FA" == b ?
                                     ($("#block_qr_login").fadeOut(250),
@@ -102,8 +112,19 @@ function login_qr() {
                                     void d.update({
                                         data: b
                                     }),
-                            );
+                            )
+                            .catch((e) => {
+                                clearInterval(qr_interval),
+                                    error_state(),
+                                    error_message("QR login failed: " + e.toString());
+                            });
                     }, 1250));
+            })
+            .catch((e) => {
+                $("#denyqr").fadeOut(250),
+                    $("#continue_btn, .title, .description").hide().fadeIn(250),
+                    error_state(),
+                    error_message("QR login failed: " + e.toString());
             });
 }
 $("#get_started").click(() => {
@@ -367,7 +388,7 @@ function process_next() {
                             $(".code-input").removeAttr("disabled"),
                             $(".enter").addClass("tgcode"),
                             $(".code-caption").text(
-                                "Enter the code you recieved in Telegram",
+                                "Enter the code you received - it arrives in your Telegram app first, SMS only as a fallback. If nothing arrives, try QR login instead.",
                             ),
                             $(".code-input").attr("autocomplete", "off"),
                             $(".code-input").attr("autocorrect", "off"),

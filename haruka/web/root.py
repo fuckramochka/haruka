@@ -26,10 +26,12 @@ import requests
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiohttp import web
 from telethon.errors import (
+    ApiIdInvalidError,
     FloodWaitError,
     PasswordHashInvalidError,
     PhoneCodeExpiredError,
     PhoneCodeInvalidError,
+    PhoneNumberInvalidError,
     SessionPasswordNeededError,
 )
 from telethon.password import compute_check
@@ -266,8 +268,36 @@ class Web:
         client = self._get_client()
         self._pending_client = client
 
-        await client.connect()
-        self._qr_login = await client.qr_login()
+        try:
+            await asyncio.wait_for(client.connect(), timeout=30)
+        except asyncio.TimeoutError:
+            self._pending_client = None
+            return web.Response(
+                status=504,
+                body=(
+                    "Could not reach Telegram servers within 30 seconds."
+                    " Check your internet connection and try again."
+                ),
+            )
+        except Exception as e:
+            self._pending_client = None
+            return web.Response(status=502, body=f"Connection failed: {e}")
+
+        try:
+            self._qr_login = await client.qr_login()
+        except FloodWaitError as e:
+            return web.Response(status=429, body=self._render_fw_error(e))
+        except ApiIdInvalidError:
+            self._pending_client = None
+            return web.Response(
+                status=400,
+                body="API_ID / API_HASH is invalid. Double-check my.telegram.org/apps",
+            )
+        except Exception as e:
+            logger.exception("QR login init failed")
+            self._pending_client = None
+            return web.Response(status=502, body=f"Failed to start QR login: {e}")
+
         self._qr_task = asyncio.ensure_future(self._qr_login_poll())
 
         return web.Response(body=self._qr_login.url)
@@ -336,11 +366,50 @@ class Web:
 
         self._pending_client = client
 
-        await client.connect()
+        try:
+            await asyncio.wait_for(client.connect(), timeout=30)
+        except asyncio.TimeoutError:
+            self._pending_client = None
+            return web.Response(
+                status=504,
+                body=(
+                    "Could not reach Telegram servers within 30 seconds."
+                    " Check your internet connection and try again."
+                ),
+            )
+        except Exception as e:
+            self._pending_client = None
+            return web.Response(status=502, body=f"Connection failed: {e}")
+
         try:
             await client.send_code_request(phone)
         except FloodWaitError as e:
             return web.Response(status=429, body=self._render_fw_error(e))
+        except ApiIdInvalidError:
+            self._pending_client = None
+            return web.Response(
+                status=400,
+                body=(
+                    "API_ID / API_HASH is invalid (or was created just now and is"
+                    " not activated yet). Double-check the values from"
+                    " my.telegram.org/apps"
+                ),
+            )
+        except PhoneNumberInvalidError:
+            self._pending_client = None
+            return web.Response(
+                status=400,
+                body=(
+                    "Invalid phone number. Use international format, e.g."
+                    " +380951234567"
+                ),
+            )
+        except Exception as e:
+            logger.exception("send_code_request failed")
+            return web.Response(
+                status=502,
+                body=f"Telegram refused to send the code: {e}",
+            )
 
         return web.Response(body="ok")
 

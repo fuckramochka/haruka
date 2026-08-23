@@ -1,4 +1,17 @@
 # Haruka Changelog
+## 🌸 Haruka 3.2.3 — Login Diagnostics
+
+### 🛠 Fixes (web login: "code doesn't arrive / QR broken")
+- **Backend**: `send_code_request` and QR init now return **readable errors**
+  instead of silent HTTP 500 — invalid API_ID/API_HASH, invalid phone number,
+  unreachable Telegram servers (30 s connect timeout instead of infinite retry),
+  FloodWait, etc.
+- **Frontend**: QR is no longer rendered from error pages — `init_qr_login` /
+  `get_qr_url` responses are status-checked; failures show a proper error dialog
+  and restore the UI.
+- Login hint updated: the code arrives **in the Telegram app first**, SMS is only
+  a fallback; QR login suggested as alternative.
+
 ## 🌸 Haruka 3.2.2 — No More Surprise Tunnels
 
 ### 🛠 Fixes
